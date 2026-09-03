@@ -21,7 +21,9 @@ class NF_Classification_History {
     public static function init() {
         add_action('admin_menu', array(__CLASS__, 'menu'), 56);
         add_action('add_meta_boxes_' . NF_Core::POST_TYPE, array(__CLASS__, 'meta_box'));
-        add_action('admin_post_nf_classification_verify', array(__CLASS__, 'verify'));
+        add_action('save_post_' . NF_Core::POST_TYPE, array(__CLASS__, 'save_product_verification'), 30, 2);
+        add_action('admin_post_nf_classification_bulk_verify', array(__CLASS__, 'bulk_verify'));
+        add_action('admin_notices', array(__CLASS__, 'notices'));
     }
 
     public static function menu() {
@@ -152,18 +154,10 @@ class NF_Classification_History {
         return self::leaf_ids($predicted) === self::leaf_ids($gold);
     }
 
-    public static function verify() {
-        if (!current_user_can('manage_options')) wp_die('権限がありません。');
-        $post_id = isset($_POST['post_id']) ? absint($_POST['post_id']) : 0;
-        if (!$post_id || get_post_type($post_id) !== NF_Core::POST_TYPE) wp_die('対象商品が正しくありません。');
-        check_admin_referer('nf_classification_verify_' . $post_id);
-        $action = isset($_POST['verification']) ? sanitize_key(wp_unslash($_POST['verification'])) : '';
-        if (!in_array($action, array('correct','corrected'), true)) wp_die('確認内容を選択してください。');
+    private static function save_verification($post_id, $action, $gold = array()) {
         $before = self::current_term_ids($post_id);
-        $gold = $action === 'correct'
-            ? $before
-            : self::clean_ids(isset($_POST['gold_terms']) ? wp_unslash($_POST['gold_terms']) : array());
-        if ($action === 'corrected' && !$gold) wp_die('正しいカテゴリを選択してください。');
+        $gold = $action === 'correct' ? $before : self::clean_ids($gold);
+        if (!$gold) return new WP_Error('nf_gold_required','正しいカテゴリがありません。カテゴリを選択してください。');
         $current = self::current($post_id);
         update_post_meta($post_id, self::HUMAN_STATUS_META, $action);
         update_post_meta($post_id, self::GOLD_TERMS_META, $gold);
@@ -180,8 +174,41 @@ class NF_Classification_History {
         update_post_meta($post_id, NF_Category_Classifier::STATUS_META, 'manual');
         update_post_meta($post_id, NF_Category_Classifier::METHOD_META, 'manual');
         self::record($post_id, 'manual', 'manual', 1, $action === 'correct' ? '管理者が分類を正解として確認' : '管理者が正解分類へ修正');
-        $redirect = isset($_POST['redirect_to']) ? esc_url_raw(wp_unslash($_POST['redirect_to'])) : get_edit_post_link($post_id, 'raw');
-        wp_safe_redirect(add_query_arg('nf_verified','1',$redirect));
+        return true;
+    }
+
+    public static function save_product_verification($post_id, $post) {
+        if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) return;
+        if (empty($_POST['nf_classification_confirmation_requested'])) return;
+        if (empty($_POST['nf_classification_verify_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nf_classification_verify_nonce'])),'nf_classification_verify_'.$post_id)) return;
+        if (!current_user_can('manage_options') || !current_user_can('edit_post',$post_id)) return;
+        $action = isset($_POST['nf_classification_verification']) ? sanitize_key(wp_unslash($_POST['nf_classification_verification'])) : '';
+        if (!in_array($action,array('correct','corrected'),true)) return;
+        $gold = isset($_POST['nf_classification_gold_terms']) ? wp_unslash($_POST['nf_classification_gold_terms']) : array();
+        $saved = self::save_verification($post_id,$action,$gold);
+        if (is_wp_error($saved)) {
+            add_filter('redirect_post_location',function($location) use ($saved){ return add_query_arg('nf_verify_error',rawurlencode($saved->get_error_message()),$location); });
+        } else {
+            add_filter('redirect_post_location',function($location){ return add_query_arg('nf_verified','1',$location); });
+        }
+    }
+
+    public static function notices() {
+        if (!empty($_GET['nf_verified'])) echo '<div class="notice notice-success is-dismissible"><p>人間確認を保存しました。</p></div>';
+        if (!empty($_GET['nf_verify_error'])) echo '<div class="notice notice-error"><p>'.esc_html(sanitize_text_field(wp_unslash($_GET['nf_verify_error']))).'</p></div>';
+    }
+
+    public static function bulk_verify() {
+        if (!current_user_can('manage_options')) wp_die('権限がありません。');
+        check_admin_referer('nf_classification_bulk_verify');
+        $ids = self::clean_ids(isset($_POST['product_ids']) ? wp_unslash($_POST['product_ids']) : array());
+        $done = 0;
+        foreach ($ids as $post_id) {
+            if (get_post_type($post_id) !== NF_Core::POST_TYPE || !current_user_can('edit_post',$post_id)) continue;
+            if (!is_wp_error(self::save_verification($post_id,'correct'))) $done++;
+        }
+        $redirect = admin_url('edit.php?post_type='.NF_Core::POST_TYPE.'&page='.self::PAGE_SLUG);
+        wp_safe_redirect(add_query_arg('nf_bulk_verified',$done,$redirect));
         exit;
     }
 
@@ -192,7 +219,7 @@ class NF_Classification_History {
         echo '<div class="nf-gold-checklist" style="columns:3;max-height:260px;overflow:auto;border:1px solid #dcdcde;padding:12px;background:#fff">';
         foreach ($terms as $term) {
             $depth = count(get_ancestors($term->term_id, NF_Category::TAXONOMY, 'taxonomy'));
-            echo '<label style="display:block;margin:0 0 7px;padding-left:'.esc_attr($depth*14).'px"><input type="checkbox" name="gold_terms[]" value="'.esc_attr($term->term_id).'" '.checked(in_array((int)$term->term_id,$selected,true),true,false).'> '.esc_html($term->name).'</label>';
+            echo '<label style="display:block;margin:0 0 7px;padding-left:'.esc_attr($depth*14).'px"><input type="checkbox" name="nf_classification_gold_terms[]" value="'.esc_attr($term->term_id).'" '.checked(in_array((int)$term->term_id,$selected,true),true,false).'> '.esc_html($term->name).'</label>';
         }
         echo '</div>';
     }
@@ -219,15 +246,11 @@ class NF_Classification_History {
         echo '<div class="nf-history-step"><strong>FINAL</strong><p>分類：'.esc_html(implode(' ＞ ',self::term_names($current['final']['categories'] ?? array())) ?: '判定不能').'<br>最終信頼度：'.esc_html(self::percent($current['final']['confidence'] ?? null)).'<br>確定段階：'.esc_html($current['confirmed_stage'] ?? '—').'</p></div>';
         echo '<p><strong>人間確認：</strong>'.esc_html($human === 'correct' ? '正解' : ($human === 'corrected' ? '修正済み' : '未確認')).'</p>';
         echo '<p class="description">信頼度は判定時の自己評価です。実測精度は、人間確認済みデータとの一致率として別に集計します。</p>';
-        ?><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-          <input type="hidden" name="action" value="nf_classification_verify">
-          <input type="hidden" name="post_id" value="<?php echo intval($post->ID); ?>">
-          <input type="hidden" name="redirect_to" value="<?php echo esc_attr(get_edit_post_link($post->ID,'raw')); ?>">
-          <?php wp_nonce_field('nf_classification_verify_'.$post->ID); ?>
-          <p><label><input type="radio" name="verification" value="correct" checked> 分類は正しい</label>　<label><input type="radio" name="verification" value="corrected"> 分類を修正</label></p>
-          <details><summary>正しい分類を選択</summary><?php self::category_checklist($post->ID, $gold ?: self::current_term_ids($post->ID)); ?></details>
-          <?php submit_button('人間確認を保存','primary','submit',false); ?>
-        </form><?php
+        wp_nonce_field('nf_classification_verify_'.$post->ID,'nf_classification_verify_nonce'); ?>
+        <p><label><input type="radio" name="nf_classification_verification" value="correct" <?php checked($human!=='corrected'); ?>> 分類は正しい</label>　<label><input type="radio" name="nf_classification_verification" value="corrected" <?php checked($human==='corrected'); ?>> 分類を修正</label></p>
+        <details <?php echo $human==='corrected'?'open':''; ?>><summary>正しい分類を選択</summary><?php self::category_checklist($post->ID, $gold ?: self::current_term_ids($post->ID)); ?></details>
+        <p><button type="submit" class="button button-primary" name="nf_classification_confirmation_requested" value="1">人間確認を保存</button></p>
+        <p class="description">このボタンは商品編集画面の標準保存処理を使用します。</p><?php
         if (is_array($history) && $history) {
             echo '<details style="margin-top:18px"><summary>過去の判定履歴（'.intval(count($history)).'件）</summary><table class="widefat striped"><thead><tr><th>日時</th><th>状態</th><th>方式</th><th>最終分類</th><th>信頼度</th></tr></thead><tbody>';
             foreach (array_reverse($history) as $row) echo '<tr><td>'.esc_html($row['decided_at']??'').'</td><td>'.esc_html($row['status']??'').'</td><td>'.esc_html($row['method']??'').'</td><td>'.esc_html(implode('、',self::term_names($row['final']['categories']??array()))).'</td><td>'.esc_html(self::percent($row['final']['confidence']??null)).'</td></tr>';
@@ -332,7 +355,9 @@ class NF_Classification_History {
         <style>
         .nf-accuracy-wrap{max-width:1500px}.nf-accuracy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:18px 0}.nf-accuracy-card{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:7px}.nf-accuracy-card strong{font-size:25px}.nf-accuracy-card small{color:#646970}.nf-accuracy-panel{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:20px;margin:18px 0}.nf-accuracy-panel h2{margin-top:0}.nf-route{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.nf-route div{background:#f6f7f7;border-radius:7px;padding:15px}.nf-improvement{font-size:18px;color:#167331}.nf-history-step{display:inline-block;vertical-align:top;width:22%;min-width:180px;margin:0 1% 12px 0;padding:12px;border-left:4px solid #2271b1;background:#f6f7f7}.nf-audit-filters{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:15px}@media(max-width:782px){.nf-route{grid-template-columns:1fr}.nf-history-step{width:auto;display:block}}
         </style>
-        <div class="wrap nf-accuracy-wrap"><h1>商品分類AIの判定履歴・精度検証</h1><p>信頼度（判定側の自己評価）と実測精度（人間確認済みGold Standardとの一致率）を分けて集計します。未確認商品は実測精度の分母に含みません。</p>
+        <div class="wrap nf-accuracy-wrap"><h1>商品分類AIの判定履歴・精度検証</h1>
+        <?php if(isset($_GET['nf_bulk_verified'])): ?><div class="notice notice-success"><p><?php echo intval($_GET['nf_bulk_verified']); ?>件を「分類は正しい」として一括確認しました。</p></div><?php endif; ?>
+        <p>信頼度（判定側の自己評価）と実測精度（人間確認済みGold Standardとの一致率）を分けて集計します。未確認商品は実測精度の分母に含みません。</p>
         <div class="nf-accuracy-grid"><?php
           self::card('総商品数',number_format_i18n($s['total']).'件');
           self::card('最終実測精度',$final_accuracy===null?'—':number_format_i18n($final_accuracy,2).'%',intval($s['correct']).' / '.intval($s['verified']).'件');
@@ -352,7 +377,23 @@ class NF_Classification_History {
         <div class="nf-accuracy-panel"><h2>累積実測精度</h2><table class="widefat striped"><tbody><tr><th>Algorithmまで</th><td><?php echo esc_html($ca===null?'—':number_format_i18n($ca,2).'%'); ?></td><td><?php echo intval($s['cumulative_algorithm']['correct']).' / '.intval($s['cumulative_algorithm']['verified']); ?>件</td></tr><tr><th>Algorithm + Text AI</th><td><?php echo esc_html($ct===null?'—':number_format_i18n($ct,2).'%'); ?></td><td><?php echo intval($s['cumulative_text']['correct']).' / '.intval($s['cumulative_text']['verified']); ?>件</td></tr><tr><th>Algorithm + Text AI + Image AI</th><td><?php echo esc_html($ci===null?'—':number_format_i18n($ci,2).'%'); ?></td><td><?php echo intval($s['cumulative_image']['correct']).' / '.intval($s['cumulative_image']['verified']); ?>件</td></tr></tbody></table><?php if($ca!==null&&$ct!==null): ?><p class="nf-improvement">Text AI追加による改善：<?php echo esc_html(sprintf('%+.2f',$ct-$ca)); ?>pt　<?php if($ci!==null): ?>Image AI追加による改善：<?php echo esc_html(sprintf('%+.2f',$ci-$ct)); ?>pt<?php endif; ?></p><?php endif; ?></div>
         <div class="nf-accuracy-panel"><h2>各判定方式の処理比率</h2><div class="nf-route"><?php foreach(array('algorithm'=>'Algorithmのみ','text_ai'=>'Text AI使用','image_ai'=>'Image AI使用') as $key=>$label): ?><div><strong><?php echo esc_html($label); ?></strong><p><?php echo esc_html(number_format_i18n(self::rate($s['route'][$key],$s['total']),2)); ?>%（<?php echo intval($s['route'][$key]); ?>件）</p></div><?php endforeach; ?></div></div>
         <div class="nf-accuracy-panel"><h2>最終信頼度別の実測正解率</h2><table class="widefat striped"><thead><tr><th>信頼度帯</th><th>実測正解率</th><th>正解／検証</th></tr></thead><tbody><?php foreach(array('95〜100%','90〜94%','80〜89%','70〜79%','70%未満') as $bucket): $b=$s['buckets'][$bucket]??array('verified'=>0,'correct'=>0); ?><tr><th><?php echo esc_html($bucket); ?></th><td><?php echo $b['verified']?esc_html(number_format_i18n(self::rate($b['correct'],$b['verified']),2)).'%':'—'; ?></td><td><?php echo intval($b['correct']).' / '.intval($b['verified']); ?>件</td></tr><?php endforeach; ?></tbody></table></div>
-        <div class="nf-accuracy-panel"><h2>要確認商品</h2><form class="nf-audit-filters" method="get"><input type="hidden" name="post_type" value="<?php echo esc_attr(NF_Core::POST_TYPE); ?>"><input type="hidden" name="page" value="<?php echo esc_attr(self::PAGE_SLUG); ?>"><label>絞り込み<br><select name="nf_audit_filter"><?php foreach(array('unverified'=>'未確認','low'=>'最終信頼度70%未満','text_ai'=>'Text AI使用','image_ai'=>'Image AI使用','close'=>'複数候補・矛盾','unclassified'=>'判定不能','corrected'=>'人間修正済み','all'=>'すべて') as $key=>$label): ?><option value="<?php echo esc_attr($key); ?>" <?php selected($_GET['nf_audit_filter']??'unverified',$key); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label><label>カテゴリ<br><?php wp_dropdown_categories(array('taxonomy'=>NF_Category::TAXONOMY,'hide_empty'=>false,'name'=>'nf_audit_category','show_option_all'=>'すべて','selected'=>absint($_GET['nf_audit_category']??0),'hierarchical'=>true)); ?></label><label>並び順<br><select name="nf_audit_order"><option value="confidence">信頼度の低い順</option><option value="name" <?php selected($_GET['nf_audit_order']??'','name'); ?>>商品名</option><option value="method" <?php selected($_GET['nf_audit_order']??'','method'); ?>>判定方式</option></select></label><?php submit_button('表示','secondary','',false); ?></form><table class="widefat striped"><thead><tr><th>商品</th><th>最終カテゴリ</th><th>判定方式</th><th>最終信頼度</th><th>人間確認</th><th></th></tr></thead><tbody><?php if(!$review_rows): ?><tr><td colspan="6">該当商品はありません。</td></tr><?php else: foreach($review_rows as $entry): $row=$entry['row']; ?><tr><td><strong><?php echo esc_html($row['product_name']); ?></strong></td><td><?php echo esc_html(implode('、',self::term_names($row['final']['categories']??array()))?:'判定不能'); ?></td><td><?php echo esc_html($row['confirmed_stage']??'—'); ?></td><td><?php echo esc_html(self::percent($row['final']['confidence']??null)); ?></td><td><?php echo esc_html($entry['human']==='correct'?'正解':($entry['human']==='corrected'?'修正済み':'未確認')); ?></td><td><a class="button" href="<?php echo esc_url(get_edit_post_link($entry['id'])); ?>">確認する</a></td></tr><?php endforeach; endif; ?></tbody></table><p class="description">管理画面の負荷を抑えるため最大100件を表示します。</p></div>
+        <div class="nf-accuracy-panel"><h2>要確認商品</h2>
+          <form class="nf-audit-filters" method="get">
+            <input type="hidden" name="post_type" value="<?php echo esc_attr(NF_Core::POST_TYPE); ?>"><input type="hidden" name="page" value="<?php echo esc_attr(self::PAGE_SLUG); ?>">
+            <label>絞り込み<br><select name="nf_audit_filter"><?php foreach(array('unverified'=>'未確認','low'=>'最終信頼度70%未満','text_ai'=>'Text AI使用','image_ai'=>'Image AI使用','close'=>'複数候補・矛盾','unclassified'=>'判定不能','corrected'=>'人間修正済み','all'=>'すべて') as $key=>$label): ?><option value="<?php echo esc_attr($key); ?>" <?php selected($_GET['nf_audit_filter']??'unverified',$key); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label>
+            <label>カテゴリ<br><?php wp_dropdown_categories(array('taxonomy'=>NF_Category::TAXONOMY,'hide_empty'=>false,'name'=>'nf_audit_category','show_option_all'=>'すべて','selected'=>absint($_GET['nf_audit_category']??0),'hierarchical'=>true)); ?></label>
+            <label>並び順<br><select name="nf_audit_order"><option value="confidence">信頼度の低い順</option><option value="name" <?php selected($_GET['nf_audit_order']??'','name'); ?>>商品名</option><option value="method" <?php selected($_GET['nf_audit_order']??'','method'); ?>>判定方式</option></select></label><?php submit_button('表示','secondary','',false); ?>
+          </form>
+          <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="nf_classification_bulk_verify"><?php wp_nonce_field('nf_classification_bulk_verify'); ?>
+            <p><button type="submit" class="button button-primary" onclick="return confirm('選択した商品を、現在の分類で正解として一括確認します。よろしいですか？')">選択した商品を正解として一括確認</button></p>
+            <table class="widefat striped"><thead><tr><td class="check-column"><input type="checkbox" id="nf-audit-select-all"></td><th>商品</th><th>最終カテゴリ</th><th>判定方式</th><th>最終信頼度</th><th>人間確認</th><th></th></tr></thead><tbody>
+            <?php if(!$review_rows): ?><tr><td colspan="7">該当商品はありません。</td></tr><?php else: foreach($review_rows as $entry): $row=$entry['row']; ?><tr><th class="check-column"><input type="checkbox" class="nf-audit-item" name="product_ids[]" value="<?php echo intval($entry['id']); ?>"></th><td><strong><?php echo esc_html($row['product_name']); ?></strong></td><td><?php echo esc_html(implode('、',self::term_names($row['final']['categories']??array()))?:'判定不能'); ?></td><td><?php echo esc_html($row['confirmed_stage']??'—'); ?></td><td><?php echo esc_html(self::percent($row['final']['confidence']??null)); ?></td><td><?php echo esc_html($entry['human']==='correct'?'正解':($entry['human']==='corrected'?'修正済み':'未確認')); ?></td><td><a class="button" href="<?php echo esc_url(get_edit_post_link($entry['id'])); ?>">確認する</a></td></tr><?php endforeach; endif; ?>
+            </tbody></table>
+          </form>
+          <script>document.addEventListener('DOMContentLoaded',function(){var all=document.getElementById('nf-audit-select-all');if(all)all.addEventListener('change',function(){document.querySelectorAll('.nf-audit-item').forEach(function(box){box.checked=all.checked;});});});</script>
+          <p class="description">一括確認は、現在表示されている分類を正解データとして保存します。分類修正が必要な商品は個別の「確認する」から修正してください。最大100件を表示します。</p>
+        </div>
         </div><?php
     }
 }
