@@ -1,0 +1,98 @@
+.nf-product-info{margin:2em 0;border:1px solid #e5e5e5;border-radius:10px;padding:24px;background:#fff}
+.nf-product-info h2{margin:0 0 22px;padding:18px 24px;background:#f7f7f7;font-size:1.4em}
+.nf-product-table>div{display:grid;grid-template-columns:140px 1fr;border-bottom:1px solid #eee;padding:14px 0;gap:20px}
+.nf-product-table strong{font-weight:700}
+.nf-status{display:inline-block;border:1px solid #ddd;border-radius:999px;padding:4px 12px;font-style:normal;font-size:.9em}
+.nf-application{margin-top:32px}
+.nf-application h3{border:1px solid #ddd;border-left:6px solid #888;padding:14px 18px;margin-bottom:20px}
+.nf-ad-note{font-size:.85em;color:#666}
+.nf-rakuten-affiliate-card{max-width:100%;overflow-x:auto}
+.nf-rakuten-affiliate-card table{max-width:100%}
+.nf-rakuten-button{display:inline-block;border:2px solid #bf0000;border-radius:8px;padding:12px 20px;text-decoration:none;font-weight:700}
+.nf-product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px}
+.nf-product-card{border:1px solid #e5e5e5;border-radius:10px;padding:14px;background:#fff}
+.nf-product-card img{width:100%;height:auto;display:block;border-radius:6px}
+.nf-product-card h3{font-size:1rem;line-height:1.5;margin:12px 0 8px}
+.nf-card-price{font-weight:700}
+@media(max-width:600px){
+  .nf-product-table>div{grid-template-columns:90px 1fr}
+  .nf-product-info{padding:16px}
+}
+
+
+/* v0.2.4 自動楽天アフィリエイトカード */
+.nf-auto-affiliate-card{
+  display:grid;
+  grid-template-columns:180px minmax(0,1fr);
+  gap:22px;
+  align-items:center;
+  border:1px solid #dedede;
+  border-radius:12px;
+  padding:18px;
+  background:#fff;
+  max-width:760px;
+  box-sizing:border-box;
+}
+.nf-auto-affiliate-image{
+  display:block;
+  text-align:center;
+}
+.nf-auto-affiliate-image img{
+  display:block;
+  width:100%;
+  max-width:180px;
+  height:auto;
+  margin:0 auto;
+  border-radius:8px;
+}
+.nf-auto-affiliate-body{
+  min-width:0;
+}
+.nf-auto-affiliate-title{
+  display:block;
+  font-weight:700;
+  line-height:1.55;
+  text-decoration:none;
+  margin-bottom:8px;
+}
+.nf-auto-affiliate-shop{
+  font-size:.85em;
+  color:#666;
+  margin-bottom:8px;
+}
+.nf-auto-affiliate-price{
+  font-size:1.15em;
+  font-weight:700;
+  margin:10px 0 14px;
+}
+.nf-auto-affiliate-button{
+  display:inline-block;
+  background:#bf0000;
+  color:#fff !important;
+  text-decoration:none !important;
+  font-weight:700;
+  padding:11px 20px;
+  border-radius:999px;
+}
+.nf-auto-affiliate-button:hover{
+  opacity:.88;
+}
+@media(max-width:600px){
+  .nf-auto-affiliate-card{
+    grid-template-columns:110px minmax(0,1fr);
+    gap:14px;
+    padding:14px;
+  }
+  .nf-auto-affiliate-image img{
+    max-width:110px;
+  }
+  .nf-auto-affiliate-title{
+    font-size:.92em;
+  }
+  .nf-auto-affiliate-button{
+    display:block;
+    text-align:center;
+    padding:10px 12px;
+    font-size:.9em;
+  }
+}

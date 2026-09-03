@@ -1,0 +1,1435 @@
+
+.nf-single-page{
+  background:#f7f8f6;
+  padding:26px 0 72px;
+}
+.nf-single-container{
+  width:min(1160px,calc(100% - 32px));
+  margin:0 auto;
+}
+.nf-single-breadcrumbs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  align-items:center;
+  margin-bottom:13px;
+  color:#7a8078;
+  font-size:12px;
+}
+.nf-single-breadcrumbs a{
+  color:#5e6e5f;
+  text-decoration:none;
+}
+.nf-single-back{
+  display:inline-block;
+  margin-bottom:14px;
+  color:#3d6645!important;
+  text-decoration:none!important;
+  font-size:13px;
+  font-weight:700;
+}
+.nf-single-hero{
+  display:grid;
+  grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr);
+  gap:34px;
+  align-items:start;
+  background:#fff;
+  border:1px solid #e3e5e0;
+  border-radius:18px;
+  padding:28px;
+  box-shadow:0 8px 30px rgba(0,0,0,.035);
+}
+.nf-single-visual{
+  overflow:hidden;
+  border-radius:14px;
+  background:#f2f3f0;
+  aspect-ratio:1 / 1;
+}
+.nf-single-visual img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#fff;
+}
+.nf-single-noimage{
+  display:grid;
+  place-items:center;
+  width:100%;
+  height:100%;
+  color:#8a8f88;
+  font-weight:700;
+}
+.nf-single-summary{
+  padding:4px 0;
+}
+.nf-single-top-tags{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:12px;
+}
+.nf-single-location,
+.nf-single-status{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+.nf-single-location{
+  background:#eef4ee;
+  color:#416447;
+}
+.nf-single-status{
+  border:1px solid #daddd7;
+  background:#fff;
+}
+.nf-single-status.is-open{color:#257b39}
+.nf-single-status.is-reserve{color:#9b6815}
+.nf-single-status.is-closed{color:#777}
+.nf-single-summary h1{
+  margin:0;
+  font-size:clamp(26px,3vw,38px);
+  line-height:1.35;
+  letter-spacing:.01em;
+}
+.nf-single-fruits{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:12px;
+}
+.nf-single-fruits span{
+  padding:4px 8px;
+  border-radius:999px;
+  background:#f1f4ef;
+  color:#5a675a;
+  font-size:11px;
+}
+.nf-single-price-block{
+  margin-top:24px;
+  padding:18px 0;
+  border-top:1px solid #eceeea;
+  border-bottom:1px solid #eceeea;
+}
+.nf-single-price-block span{
+  display:block;
+  margin-bottom:4px;
+  color:#6d746d;
+  font-size:12px;
+}
+.nf-single-price-block strong{
+  display:block;
+  font-size:30px;
+  line-height:1.25;
+}
+.nf-single-quick-info{
+  margin:16px 0 0;
+}
+.nf-single-quick-info>div{
+  display:grid;
+  grid-template-columns:90px minmax(0,1fr);
+  gap:12px;
+  padding:9px 0;
+}
+.nf-single-quick-info dt{
+  color:#6b716b;
+  font-weight:700;
+}
+.nf-single-quick-info dd{
+  margin:0;
+}
+.nf-single-cta{
+  display:block;
+  margin-top:20px;
+  padding:14px 18px;
+  border-radius:10px;
+  background:#bf0000;
+  color:#fff!important;
+  text-align:center;
+  text-decoration:none!important;
+  font-size:16px;
+  font-weight:700;
+}
+.nf-single-cta:hover{
+  opacity:.9;
+}
+.nf-single-ad-note{
+  margin:7px 0 0;
+  color:#777;
+  font-size:11px;
+  text-align:center;
+}
+.nf-single-rakuten-title{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid #eceeea;
+  color:#555;
+  font-size:12px;
+}
+.nf-single-rakuten-title summary{
+  cursor:pointer;
+  font-weight:700;
+}
+.nf-single-rakuten-title p{
+  margin:8px 0 0;
+  line-height:1.7;
+}
+.nf-single-section{
+  margin-top:24px;
+  padding:26px 28px;
+  background:#fff;
+  border:1px solid #e3e5e0;
+  border-radius:16px;
+}
+.nf-single-section-head{
+  margin-bottom:18px;
+}
+.nf-single-section-label{
+  margin:0 0 5px;
+  color:#628064;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.14em;
+}
+.nf-single-section-head h2,
+.nf-single-rakuten-box h2{
+  margin:0;
+  font-size:24px;
+}
+.nf-single-info-table>div{
+  display:grid;
+  grid-template-columns:150px minmax(0,1fr);
+  gap:20px;
+  padding:14px 0;
+  border-bottom:1px solid #eceeea;
+}
+.nf-single-info-table>div:last-child{
+  border-bottom:0;
+}
+.nf-single-description-body{
+  line-height:1.9;
+}
+.nf-single-description-body>*:first-child{
+  margin-top:0;
+}
+.nf-single-description-body>*:last-child{
+  margin-bottom:0;
+}
+.nf-single-rakuten-box{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:28px;
+  margin-top:24px;
+  padding:26px 28px;
+  border-radius:16px;
+  background:#fff;
+  border:1px solid #e3e5e0;
+}
+.nf-single-rakuten-box p{
+  margin:8px 0 0;
+  color:#666;
+}
+.nf-single-rakuten-box>a{
+  flex:0 0 auto;
+  padding:13px 20px;
+  border-radius:10px;
+  background:#bf0000;
+  color:#fff!important;
+  text-decoration:none!important;
+  font-weight:700;
+}
+.nf-single-related{
+  margin-top:34px;
+}
+.nf-single-related-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+}
+.nf-single-related-card{
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #e3e5e0;
+  border-radius:13px;
+}
+.nf-single-related-image{
+  display:block;
+  aspect-ratio:1 / 1;
+  overflow:hidden;
+  background:#f1f2ef;
+}
+.nf-single-related-image img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.nf-single-related-body{
+  padding:12px;
+}
+.nf-single-related-body h3{
+  margin:0 0 9px;
+  font-size:13px;
+  line-height:1.55;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  min-height:4.6em;
+}
+.nf-single-related-body h3 a{
+  color:#222!important;
+  text-decoration:none!important;
+}
+.nf-single-related-body strong{
+  font-size:14px;
+}
+.nf-single-mobile-cta{
+  display:none;
+}
+
+@media(max-width:900px){
+  .nf-single-hero{
+    grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+    gap:22px;
+    padding:20px;
+  }
+  .nf-single-summary h1{
+    font-size:25px;
+  }
+  .nf-single-price-block strong{
+    font-size:25px;
+  }
+  .nf-single-related-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:720px){
+  .nf-single-page{
+    padding:16px 0 92px;
+  }
+  .nf-single-container{
+    width:calc(100% - 20px);
+  }
+  .nf-single-hero{
+    grid-template-columns:1fr;
+    gap:16px;
+    padding:14px;
+    border-radius:13px;
+  }
+  .nf-single-visual{
+    aspect-ratio:1 / 1;
+  }
+  .nf-single-summary h1{
+    font-size:24px;
+  }
+  .nf-single-price-block{
+    margin-top:17px;
+    padding:14px 0;
+  }
+  .nf-single-price-block strong{
+    font-size:24px;
+  }
+  .nf-single-quick-info>div{
+    grid-template-columns:76px minmax(0,1fr);
+    gap:9px;
+    font-size:13px;
+  }
+  .nf-single-section{
+    margin-top:14px;
+    padding:18px 16px;
+    border-radius:12px;
+  }
+  .nf-single-section-head h2,
+  .nf-single-rakuten-box h2{
+    font-size:20px;
+  }
+  .nf-single-info-table>div{
+    grid-template-columns:88px minmax(0,1fr);
+    gap:10px;
+    padding:11px 0;
+    font-size:13px;
+  }
+  .nf-single-rakuten-box{
+    display:block;
+    margin-top:14px;
+    padding:18px 16px;
+  }
+  .nf-single-rakuten-box>a{
+    display:block;
+    margin-top:14px;
+    text-align:center;
+  }
+  .nf-single-related{
+    margin-top:24px;
+  }
+  .nf-single-related-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:9px;
+  }
+  .nf-single-related-body{
+    padding:9px;
+  }
+  .nf-single-related-body h3{
+    font-size:12px;
+  }
+
+  .nf-single-mobile-cta{
+    position:fixed;
+    z-index:9998;
+    left:0;
+    right:0;
+    bottom:0;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px max(12px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-right));
+    background:rgba(255,255,255,.97);
+    border-top:1px solid #ddd;
+    box-shadow:0 -5px 20px rgba(0,0,0,.08);
+    backdrop-filter:blur(8px);
+  }
+  .nf-single-mobile-cta>div{
+    min-width:0;
+  }
+  .nf-single-mobile-cta span{
+    display:block;
+    color:#777;
+    font-size:10px;
+  }
+  .nf-single-mobile-cta strong{
+    display:block;
+    font-size:14px;
+    white-space:nowrap;
+  }
+  .nf-single-mobile-cta a{
+    flex:0 0 auto;
+    padding:11px 16px;
+    border-radius:9px;
+    background:#bf0000;
+    color:#fff!important;
+    text-decoration:none!important;
+    font-weight:700;
+  }
+}
+
+
+/* ========================================
+   v0.6.3 商品画像ギャラリー
+======================================== */
+
+.nf-single-media{
+  min-width:0;
+}
+
+button.nf-single-visual{
+  position:relative;
+  display:block;
+  width:100%;
+  padding:0;
+  border:0;
+  cursor:zoom-in;
+  font:inherit;
+  text-align:inherit;
+}
+
+button.nf-single-visual:focus-visible{
+  outline:3px solid rgba(37,123,57,.28);
+  outline-offset:3px;
+}
+
+.nf-gallery-counter{
+  position:absolute;
+  right:10px;
+  bottom:10px;
+  z-index:2;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:44px;
+  min-height:28px;
+  padding:3px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.92);
+  color:#444;
+  font-size:11px;
+  font-weight:700;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+.nf-gallery-zoom{
+  position:absolute;
+  right:10px;
+  top:10px;
+  z-index:2;
+  display:grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background:rgba(255,255,255,.94);
+  color:#35543a;
+  font-size:20px;
+  line-height:1;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+
+.nf-gallery-thumbs{
+  display:flex;
+  gap:8px;
+  width:100%;
+  margin-top:10px;
+  padding:1px 1px 5px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scroll-snap-type:x proximity;
+  scrollbar-width:thin;
+  -webkit-overflow-scrolling:touch;
+}
+
+.nf-gallery-thumb{
+  flex:0 0 calc((100% - 24px) / 4);
+  min-width:0;
+  aspect-ratio:1 / 1;
+  padding:0;
+  overflow:hidden;
+  border:2px solid transparent;
+  border-radius:9px;
+  background:#f1f2ef;
+  cursor:pointer;
+  scroll-snap-align:start;
+  opacity:.72;
+  transition:
+    opacity .15s ease,
+    border-color .15s ease,
+    transform .15s ease;
+}
+
+.nf-gallery-thumb:hover{
+  opacity:1;
+  transform:translateY(-1px);
+}
+
+.nf-gallery-thumb.is-active{
+  opacity:1;
+  border-color:#4f8b55;
+}
+
+.nf-gallery-thumb:focus-visible{
+  outline:2px solid rgba(37,123,57,.35);
+  outline-offset:2px;
+}
+
+.nf-gallery-thumb img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  background:#fff;
+}
+
+.nf-gallery-help{
+  margin:3px 0 0!important;
+  color:#8a8f88;
+  font-size:10px;
+  line-height:1.5;
+  text-align:right;
+}
+
+/* Lightbox */
+html.nf-gallery-lightbox-open,
+html.nf-gallery-lightbox-open body{
+  overflow:hidden;
+}
+
+.nf-gallery-lightbox[hidden]{
+  display:none!important;
+}
+
+.nf-gallery-lightbox{
+  position:fixed;
+  z-index:100000;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:54px 70px;
+  background:rgba(18,20,18,.92);
+  backdrop-filter:blur(4px);
+}
+
+.nf-gallery-lightbox-stage{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:min(1100px,100%);
+  height:min(86vh,900px);
+}
+
+.nf-gallery-lightbox-stage img{
+  display:block;
+  max-width:100%;
+  max-height:100%;
+  width:auto;
+  height:auto;
+  object-fit:contain;
+  user-select:none;
+  -webkit-user-drag:none;
+}
+
+.nf-gallery-lightbox-close{
+  position:absolute;
+  top:max(14px,env(safe-area-inset-top));
+  right:max(18px,env(safe-area-inset-right));
+  z-index:3;
+  display:grid;
+  place-items:center;
+  width:44px;
+  height:44px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  font-size:31px;
+  line-height:1;
+  cursor:pointer;
+}
+
+.nf-gallery-lightbox-nav{
+  position:absolute;
+  top:50%;
+  z-index:3;
+  transform:translateY(-50%);
+  display:grid;
+  place-items:center;
+  width:48px;
+  height:62px;
+  padding:0;
+  border:0;
+  border-radius:9px;
+  background:rgba(255,255,255,.12);
+  color:#fff;
+  font-size:44px;
+  line-height:1;
+  cursor:pointer;
+}
+
+.nf-gallery-lightbox-nav.is-prev{
+  left:18px;
+}
+
+.nf-gallery-lightbox-nav.is-next{
+  right:18px;
+}
+
+.nf-gallery-lightbox-close:hover,
+.nf-gallery-lightbox-nav:hover{
+  background:rgba(255,255,255,.22);
+}
+
+.nf-gallery-lightbox-count{
+  position:absolute;
+  left:50%;
+  bottom:6px;
+  transform:translateX(-50%);
+  padding:5px 10px;
+  border-radius:999px;
+  background:rgba(0,0,0,.42);
+  color:#fff;
+  font-size:12px;
+  font-weight:700;
+}
+
+/* スマホ */
+@media(max-width:720px){
+  .nf-gallery-thumbs{
+    gap:6px;
+    margin-top:7px;
+  }
+
+  .nf-gallery-thumb{
+    flex-basis:23%;
+    border-radius:7px;
+  }
+
+  .nf-gallery-help{
+    font-size:9px;
+    text-align:left;
+  }
+
+  .nf-gallery-help span{
+    display:inline;
+  }
+
+  .nf-gallery-counter{
+    right:7px;
+    bottom:7px;
+    min-height:25px;
+    font-size:10px;
+  }
+
+  .nf-gallery-zoom{
+    right:7px;
+    top:7px;
+    width:29px;
+    height:29px;
+    font-size:18px;
+  }
+
+  .nf-gallery-lightbox{
+    padding:
+      calc(54px + env(safe-area-inset-top))
+      8px
+      calc(42px + env(safe-area-inset-bottom));
+  }
+
+  .nf-gallery-lightbox-stage{
+    height:82vh;
+  }
+
+  .nf-gallery-lightbox-nav{
+    top:auto;
+    bottom:calc(10px + env(safe-area-inset-bottom));
+    width:54px;
+    height:42px;
+    font-size:34px;
+    background:rgba(255,255,255,.16);
+  }
+
+  .nf-gallery-lightbox-nav.is-prev{
+    left:calc(50% - 68px);
+  }
+
+  .nf-gallery-lightbox-nav.is-next{
+    right:calc(50% - 68px);
+  }
+
+  .nf-gallery-lightbox-count{
+    bottom:calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+
+/* ========================================
+   v0.6.4 ギャラリー小型化
+======================================== */
+
+@media(min-width:901px){
+  .nf-single-media{
+    width:92%;
+    max-width:470px;
+    justify-self:center;
+  }
+
+  .nf-single-summary{
+    padding-top:2px;
+  }
+}
+
+@media(min-width:721px) and (max-width:900px){
+  .nf-single-media{
+    width:94%;
+    max-width:440px;
+    justify-self:center;
+  }
+}
+
+/* PCは約6枚を常時見せる */
+.nf-gallery-thumb{
+  flex:0 0 calc((100% - 40px) / 6);
+  border-radius:7px;
+}
+
+.nf-gallery-thumbs{
+  gap:8px;
+  margin-top:8px;
+}
+
+.nf-gallery-help{
+  margin-top:2px!important;
+  font-size:9px;
+}
+
+.nf-gallery-counter{
+  min-width:40px;
+  min-height:25px;
+  font-size:10px;
+}
+
+.nf-gallery-zoom{
+  width:29px;
+  height:29px;
+  font-size:18px;
+}
+
+/* スマホではメイン画像を少しだけコンパクトに */
+@media(max-width:720px){
+  .nf-single-media{
+    width:94%;
+    max-width:430px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+
+  .nf-gallery-thumb{
+    flex-basis:20%;
+  }
+
+  .nf-gallery-thumbs{
+    gap:5px;
+  }
+}
+
+
+/* ========================================
+   v0.7.0 マルチポータル
+======================================== */
+
+.nf-single-portals{
+  margin-top:20px;
+  padding:13px;
+  border:1px solid #e3e5e0;
+  border-radius:11px;
+  background:#fafbf9;
+}
+
+.nf-single-portals-title{
+  margin-bottom:8px;
+  color:#666;
+  font-size:11px;
+  font-weight:700;
+}
+
+.nf-single-portal-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 120px;
+  gap:10px;
+  align-items:center;
+  padding:9px 0;
+  border-top:1px solid #e7e9e5;
+}
+
+.nf-single-portal-row:first-of-type{
+  border-top:0;
+}
+
+.nf-single-portal-info{
+  min-width:0;
+}
+
+.nf-single-portal-info strong{
+  display:block;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.nf-single-portal-info span{
+  display:block;
+  margin-top:2px;
+  color:#666;
+  font-size:11px;
+}
+
+.nf-single-portal-row>a{
+  display:block;
+  padding:9px 8px;
+  border-radius:7px;
+  color:#fff!important;
+  text-align:center;
+  text-decoration:none!important;
+  font-size:12px;
+  font-weight:700;
+}
+
+.nf-single-portal-row.is-rakuten>a,
+.nf-single-portal-box-buttons .is-rakuten{
+  background:#bf0000;
+}
+
+.nf-single-portal-row.is-yahoo>a,
+.nf-single-portal-box-buttons .is-yahoo{
+  background:#e60033;
+}
+
+.nf-single-portal-row.is-out{
+  opacity:.65;
+}
+
+.nf-single-portal-box{
+  align-items:center;
+}
+
+.nf-single-portal-box-buttons{
+  display:flex;
+  flex:0 0 auto;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+}
+
+.nf-single-portal-box-buttons>a{
+  min-width:135px;
+  padding:12px 16px;
+  border-radius:9px;
+  color:#fff!important;
+  text-align:center;
+  text-decoration:none!important;
+  font-weight:700;
+}
+
+.nf-single-portal-box-buttons .is-out{
+  opacity:.65;
+}
+
+.nf-mobile-portal-buttons{
+  display:flex;
+  flex:0 0 auto;
+  gap:6px;
+}
+
+.nf-single-mobile-cta .nf-mobile-portal-buttons a{
+  padding:10px 12px;
+  border-radius:8px;
+  color:#fff!important;
+  text-decoration:none!important;
+  font-size:12px;
+  font-weight:700;
+}
+
+.nf-mobile-portal-buttons .is-rakuten{
+  background:#bf0000;
+}
+
+.nf-mobile-portal-buttons .is-yahoo{
+  background:#e60033;
+}
+
+@media(max-width:720px){
+  .nf-single-portal-row{
+    grid-template-columns:minmax(0,1fr) 94px;
+  }
+
+  .nf-single-portal-row>a{
+    font-size:11px;
+  }
+
+  .nf-single-portal-box-buttons{
+    justify-content:stretch;
+    margin-top:14px;
+  }
+
+  .nf-single-portal-box-buttons>a{
+    flex:1 1 120px;
+  }
+
+  .nf-single-mobile-cta .nf-mobile-portal-buttons a{
+    min-width:54px;
+    padding:10px 8px;
+  }
+}
+
+
+.nf-single-portal-info strong small{
+  display:inline-block;
+  margin-left:4px;
+  padding:1px 5px;
+  border-radius:999px;
+  background:#f2f2f2;
+  color:#777;
+  font-size:9px;
+  font-weight:700;
+  vertical-align:middle;
+}
+
+
+/* ========================================
+   v0.7.7 Yahoo!容量表示 + 申込先UI再設計
+======================================== */
+
+.nf-variant-capacity{
+  background:#fff3f5!important;
+  color:#b6002c!important;
+  font-size:10px!important;
+}
+
+/* v0.7.8: complete variant specifications, including long ranges and package counts. */
+.nf-single-portal-info strong .nf-variant-spec{
+  display:block;
+  width:fit-content;
+  max-width:100%;
+  box-sizing:border-box;
+  margin:5px 0 3px;
+  padding:4px 7px;
+  border-radius:6px;
+  font-size:12px!important;
+  line-height:1.65;
+}
+
+.nf-single-portal-info .nf-variant-spec,
+.nf-portal-choice-card__main .nf-variant-spec{
+  white-space:normal;
+  overflow:visible;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  text-overflow:clip;
+  max-height:none;
+  -webkit-line-clamp:unset;
+}
+
+.nf-single-portal-info .nf-spec-part,
+.nf-portal-choice-card__main .nf-spec-part{
+  display:inline-block;
+  max-width:100%;
+  margin:0;
+  color:inherit;
+  font:inherit;
+  vertical-align:top;
+  overflow-wrap:anywhere;
+}
+
+.nf-portal-meta{
+  display:flex!important;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:7px;
+}
+
+.nf-portal-meta b{
+  color:#333;
+  font-size:12px;
+}
+
+.nf-portal-meta em{
+  display:inline-block;
+  padding:2px 6px;
+  border-radius:999px;
+  font-size:9px;
+  font-style:normal;
+  font-weight:700;
+}
+
+.nf-portal-meta .is-in-stock{
+  background:#edf7ee;
+  color:#2b7434;
+}
+
+.nf-portal-meta .is-out-stock{
+  background:#f2f2f2;
+  color:#888;
+}
+
+/* 旧flexのnf-single-rakuten-boxに依存しない新セクション */
+.nf-single-portal-section{
+  margin-top:24px;
+  padding:24px 26px 26px;
+  border:1px solid #e3e5e0;
+  border-radius:16px;
+  background:#fff;
+}
+
+.nf-single-portal-section-head{
+  width:100%;
+  max-width:760px;
+}
+
+.nf-single-portal-section-head h2{
+  margin:0;
+  color:#242824;
+  font-size:24px;
+  line-height:1.4;
+}
+
+.nf-single-portal-section-head>p:not(.nf-single-section-label){
+  margin:8px 0 0;
+  color:#666;
+  font-size:13px;
+  line-height:1.7;
+}
+
+.nf-single-portal-choice-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  margin-top:18px;
+}
+
+.nf-portal-choice-card{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  padding:14px;
+  border:1px solid #e5e7e3;
+  border-radius:12px;
+  background:#fafbf9;
+}
+
+.nf-portal-choice-card.is-yahoo{
+  border-color:#f1d9df;
+  background:#fffafb;
+}
+
+.nf-portal-choice-card.is-out{
+  opacity:.62;
+}
+
+.nf-portal-choice-card__brand{
+  color:#666;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.4;
+}
+
+.nf-portal-choice-card.is-rakuten .nf-portal-choice-card__brand{
+  color:#a00000;
+}
+
+.nf-portal-choice-card.is-yahoo .nf-portal-choice-card__brand{
+  color:#c30032;
+}
+
+.nf-portal-choice-card__main{
+  margin-top:7px;
+}
+
+.nf-portal-choice-card__main strong{
+  display:block;
+  color:#222;
+  font-size:19px;
+  line-height:1.35;
+}
+
+.nf-portal-choice-card__main span{
+  display:block;
+  margin-top:3px;
+  color:#555;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.nf-portal-choice-card__status{
+  margin-top:8px;
+  color:#5f6f60;
+  font-size:10px;
+  font-weight:700;
+}
+
+.nf-portal-choice-card>a{
+  display:block;
+  margin-top:auto;
+  padding:10px 9px;
+  border-radius:8px;
+  color:#fff!important;
+  text-align:center;
+  text-decoration:none!important;
+  font-size:12px;
+  font-weight:700;
+}
+
+.nf-portal-choice-card.is-rakuten>a{
+  background:#bf0000;
+}
+
+.nf-portal-choice-card.is-yahoo>a{
+  background:#e60033;
+}
+
+@media(max-width:1000px){
+  .nf-single-portal-choice-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:720px){
+  .nf-single-portal-section{
+    margin-top:14px;
+    padding:18px 15px;
+    border-radius:12px;
+  }
+
+  .nf-single-portal-section-head h2{
+    font-size:20px;
+  }
+
+  .nf-single-portal-section-head>p:not(.nf-single-section-label){
+    font-size:12px;
+  }
+
+  .nf-single-portal-choice-grid{
+    grid-template-columns:1fr;
+    gap:9px;
+    margin-top:14px;
+  }
+
+  .nf-portal-choice-card{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 108px;
+    gap:8px 10px;
+    align-items:center;
+    padding:12px;
+  }
+
+  .nf-portal-choice-card__brand,
+  .nf-portal-choice-card__main,
+  .nf-portal-choice-card__status{
+    grid-column:1;
+  }
+
+  .nf-portal-choice-card>a{
+    grid-column:2;
+    grid-row:1 / span 3;
+    margin-top:0;
+  }
+
+  .nf-portal-choice-card__main strong{
+    font-size:17px;
+  }
+}
+
+
+/* ========================================
+   v0.8.0 Yahoo!ショッピング内ストア表示
+======================================== */
+
+.nf-yahoo-store-line{
+  display:flex!important;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px;
+  margin:3px 0 0!important;
+  color:#555!important;
+  font-size:10px!important;
+  line-height:1.4;
+}
+
+.nf-yahoo-store-line>span{
+  display:inline-block;
+  width:auto!important;
+  margin:0!important;
+  padding:1px 5px;
+  border-radius:999px;
+  background:#f0f1ef;
+  color:#6a6f69!important;
+  font-size:8px!important;
+  font-weight:700;
+  line-height:1.45;
+}
+
+.nf-yahoo-store-line>b{
+  color:#333;
+  font-size:11px;
+  font-weight:700;
+}
+
+.nf-portal-choice-card__store{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:5px;
+  min-width:0;
+}
+
+.nf-portal-choice-card__store>span{
+  display:inline-block;
+  padding:2px 6px;
+  border-radius:999px;
+  background:#f1f1f1;
+  color:#777;
+  font-size:8px;
+  font-weight:700;
+}
+
+.nf-portal-choice-card__store>strong{
+  min-width:0;
+  color:#333;
+  font-size:12px;
+  line-height:1.4;
+  overflow-wrap:anywhere;
+}
+
+.nf-portal-choice-card.is-yahoo .nf-portal-choice-card__store>strong{
+  color:#a9002c;
+}
+
+@media(max-width:720px){
+  .nf-portal-choice-card__store{
+    grid-column:1;
+  }
+
+  .nf-portal-choice-card>a{
+    grid-row:1 / span 4;
+  }
+}
+
+
+/* ========================================
+   v0.8.1 規格ラベルを個別チップ表示
+======================================== */
+
+/* 外側の旧ピンクラベルを完全にリセット */
+.nf-single-portal-info .nf-variant-spec,
+.nf-single-portal-info strong .nf-variant-spec,
+.nf-portal-choice-card__main .nf-variant-spec{
+  display:flex!important;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px;
+  width:auto!important;
+  max-width:100%;
+  margin:6px 0 4px!important;
+  padding:0!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  color:inherit!important;
+  font-size:inherit!important;
+  line-height:1.4!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+  box-shadow:none!important;
+}
+
+/* 重量・数量・サイズ・小分けを1項目ずつ独立 */
+.nf-single-portal-info .nf-spec-chip,
+.nf-portal-choice-card__main .nf-spec-chip{
+  display:inline-flex!important;
+  align-items:center;
+  width:auto!important;
+  max-width:100%;
+  margin:0!important;
+  padding:3px 7px!important;
+  background:#f5f6f3!important;
+  border:1px solid #e1e4de!important;
+  border-radius:6px!important;
+  color:#40443f!important;
+  font-size:11px!important;
+  font-weight:700!important;
+  line-height:1.35!important;
+  white-space:nowrap!important;
+  overflow-wrap:normal!important;
+  word-break:keep-all!important;
+  vertical-align:middle;
+}
+
+/* Yahoo!行では規格をブランド色にしすぎない */
+.nf-single-portal-row.is-yahoo .nf-spec-chip,
+.nf-portal-choice-card.is-yahoo .nf-spec-chip{
+  background:#f7f7f5!important;
+  border-color:#e2e4df!important;
+  color:#363a36!important;
+}
+
+/* 下部カードのstrong自体が巨大文字にならないよう調整 */
+.nf-portal-choice-card__main>strong.nf-variant-spec{
+  font-size:inherit!important;
+}
+
+/* 旧v0.7.xの赤背景指定より優先 */
+.nf-variant-capacity.nf-variant-spec{
+  background:transparent!important;
+  color:inherit!important;
+}
+
+/* 狭い領域ではチップ単位で次行へ。チップ内部では折らない */
+@media(max-width:720px){
+  .nf-single-portal-info .nf-variant-spec,
+  .nf-portal-choice-card__main .nf-variant-spec{
+    gap:4px;
+  }
+
+  .nf-single-portal-info .nf-spec-chip,
+  .nf-portal-choice-card__main .nf-spec-chip{
+    padding:3px 6px!important;
+    font-size:10px!important;
+  }
+}
+
+
+/* v0.8.2 related recommendation note */
+.nf-single-related-note{
+  margin:6px 0 0!important;
+  color:#6a6f69;
+  font-size:11px;
+  line-height:1.6;
+}
+
+
+/* v0.8.3 人気欄 */
+.nf-single-popular{
+  margin-top:28px;
+}
+
+.nf-single-popular .nf-single-section-label{
+  letter-spacing:.12em;
+}
+
+
+/* ========================================
+   v0.8.4 人気不足時の注目返礼品フォールバック
+======================================== */
+
+.nf-single-related-image{
+  position:relative;
+}
+
+.nf-popularity-card-badge{
+  position:absolute;
+  top:8px;
+  left:8px;
+  z-index:2;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:24px;
+  padding:3px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.94);
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  font-size:9px;
+  font-weight:700;
+  line-height:1.3;
+}
+
+.nf-popularity-card-badge.is-popular{
+  color:#a33c20;
+}
+
+.nf-popularity-card-badge.is-featured{
+  color:#3f713f;
+}
+
+.nf-popularity-mode-featured .nf-single-section-label{
+  color:#5d7f59;
+}
+
+.nf-popularity-mode-mixed .nf-single-section-label{
+  color:#7a6953;
+}
+
+@media(max-width:720px){
+  .nf-popularity-card-badge{
+    top:6px;
+    left:6px;
+    min-height:21px;
+    padding:2px 6px;
+    font-size:8px;
+  }
+}
+
+
+/* v0.9.3 status visual reset */
+.nf-single-status,
+.nf-portal-meta em{
+  border:1px solid transparent;
+}

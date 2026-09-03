@@ -1,0 +1,344 @@
+
+/* v0.9.3 public UI themes */
+body.nf-color-green{--nf-accent:#25963a;--nf-accent-dark:#187f2c;--nf-accent-soft:#edf8ef}
+body.nf-color-forest{--nf-accent:#2f6b3d;--nf-accent-dark:#234f2f;--nf-accent-soft:#edf5ef}
+body.nf-color-teal{--nf-accent:#16847a;--nf-accent-dark:#10675f;--nf-accent-soft:#e9f7f5}
+body.nf-color-blue{--nf-accent:#3176c6;--nf-accent-dark:#245b9c;--nf-accent-soft:#edf5ff}
+body.nf-color-navy{--nf-accent:#274f77;--nf-accent-dark:#183b5d;--nf-accent-soft:#eef4fa}
+body.nf-color-purple{--nf-accent:#7451a6;--nf-accent-dark:#593c83;--nf-accent-soft:#f4effa}
+body.nf-color-wine{--nf-accent:#8b3448;--nf-accent-dark:#672536;--nf-accent-soft:#faeff2}
+body.nf-color-red{--nf-accent:#c5292f;--nf-accent-dark:#9e1e23;--nf-accent-soft:#fff0f0}
+body.nf-color-pink{--nf-accent:#c94f7c;--nf-accent-dark:#9e3a60;--nf-accent-soft:#fff0f6}
+body.nf-color-orange{--nf-accent:#d46d16;--nf-accent-dark:#a9510d;--nf-accent-soft:#fff5e9}
+body.nf-color-gold{--nf-accent:#9a7a18;--nf-accent-dark:#735b11;--nf-accent-soft:#fbf7e9}
+body.nf-color-charcoal{--nf-accent:#3f4641;--nf-accent-dark:#292f2b;--nf-accent-soft:#f1f2f1}
+
+body.nf-furusato-shell .nf-furusato-search-button,
+body.nf-furusato-shell .nf-catalog-search-box button,
+body.nf-furusato-shell .nf-catalog-detail-button:hover{
+  background:var(--nf-accent)!important;
+}
+body.nf-furusato-shell .nf-catalog-detail-button{
+  border-color:var(--nf-accent)!important;
+  color:var(--nf-accent)!important;
+}
+body.nf-furusato-shell .nf-furusato-desktop-nav a:hover{
+  color:var(--nf-accent-dark)!important;
+  background:var(--nf-accent-soft)!important;
+}
+body.nf-furusato-shell .nf-furusato-bottom-nav>a>span{
+  color:var(--nf-accent)!important;
+}
+
+body.nf-layout-wide .nf-catalog-container,
+body.nf-layout-wide .nf-single-container{
+  max-width:1440px!important;
+}
+body.nf-layout-compact .nf-catalog-grid{
+  gap:8px!important;
+}
+body.nf-layout-compact .nf-catalog-card-body{
+  padding:9px!important;
+}
+body.nf-layout-compact .nf-single-section{
+  padding-top:18px!important;
+  padding-bottom:18px!important;
+}
+
+body.nf-price-hidden .nf-catalog-price,
+body.nf-price-hidden .nf-single-price-block,
+body.nf-price-hidden .nf-portal-meta>b,
+body.nf-price-hidden .nf-portal-choice-card__main>strong,
+body.nf-price-hidden .nf-single-related-body>strong,
+body.nf-price-hidden .nf-single-mobile-cta>div:first-child{
+  display:none!important;
+}
+
+body.nf-portals-rakuten .is-yahoo,
+body.nf-portals-rakuten .is-yahoo-only,
+body.nf-portals-rakuten .nf-yahoo-store-line,
+body.nf-portals-yahoo .is-rakuten{
+  display:none!important;
+}
+
+body.nf-reviews-hidden .nf-single-review-summary{
+  display:none!important;
+}
+
+.nf-owned-content-block{
+  margin:10px 0;
+  padding:14px 16px;
+  border:1px solid #e1e5df;
+  border-radius:12px;
+  background:#fff;
+}
+.nf-owned-content-block[hidden]{
+  display:none!important;
+}
+.nf-owned-content-block__head span{
+  color:#6a806d;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.12em;
+}
+.nf-owned-content-block__head h2{
+  margin:3px 0 0;
+  font-size:20px;
+}
+.nf-owned-content-block__body{
+  margin-top:8px;
+  color:#454a46;
+  line-height:1.65;
+}
+.nf-owned-content-block__body>:first-child{margin-top:0}
+.nf-owned-content-block__body>:last-child{margin-bottom:0}
+
+/* Custom banner/layout HTML normally supplies its own frame and spacing. */
+.nf-owned-content-block--no-title{
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.nf-owned-content-block--no-title .nf-owned-content-block__body{
+  margin-top:0;
+}
+
+/* Avoid doubled vertical gaps around the season and recommendation sections. */
+.nf-owned-content-block + .nf-feature-section,
+.nf-feature-section + .nf-owned-content-block{
+  margin-top:10px;
+}
+
+@media(max-width:720px){
+  .nf-owned-content-block{
+    margin:8px 0;
+    padding:10px 12px;
+    border-radius:10px;
+  }
+  .nf-owned-content-block__head h2{
+    font-size:18px;
+  }
+  .nf-owned-content-block__body{
+    margin-top:6px;
+    line-height:1.6;
+  }
+  .nf-owned-content-block--no-title{
+    padding:0;
+  }
+  .nf-owned-content-block + .nf-feature-section,
+  .nf-feature-section + .nf-owned-content-block{
+    margin-top:8px;
+  }
+}
+
+.nf-single-review-summary{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:8px 0 0;
+}
+.nf-single-review-stars{
+  color:#e6a000;
+  letter-spacing:1px;
+  font-size:15px;
+}
+.nf-single-review-meta{
+  color:#666;
+  font-size:11px;
+}
+
+.nf-feature-description{
+  line-height:1.75;
+}
+.nf-feature-description.is-long{
+  max-width:820px;
+}
+
+
+.nf-catalog-review{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px;
+  margin-top:6px;
+}
+.nf-catalog-review-stars{
+  color:#e6a000;
+  font-size:11px;
+  letter-spacing:.5px;
+}
+.nf-catalog-review small{
+  color:#777;
+  font-size:9px;
+}
+body.nf-reviews-hidden .nf-catalog-review{
+  display:none!important;
+}
+
+
+/* v0.9.0 accent color coverage */
+body.nf-furusato-shell .nf-catalog-small-label,
+body.nf-furusato-shell .nf-single-section-label,
+body.nf-furusato-shell .nf-catalog-eyebrow,
+body.nf-furusato-shell .nf-catalog-municipality,
+body.nf-furusato-shell .nf-single-location,
+body.nf-furusato-shell .nf-single-back,
+body.nf-furusato-shell .nf-single-breadcrumbs a{
+  color:var(--nf-accent)!important;
+}
+
+body.nf-furusato-shell .nf-tax-chip:hover,
+body.nf-furusato-shell .nf-tax-chip.is-active,
+body.nf-furusato-shell .nf-catalog-filter-toggle:hover{
+  border-color:var(--nf-accent)!important;
+  color:var(--nf-accent)!important;
+}
+
+body.nf-furusato-shell .nf-catalog-detail-button:hover{
+  color:#fff!important;
+}
+
+body.nf-layout-compact .nf-catalog-grid{
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+}
+body.nf-layout-wide .nf-catalog-grid{
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+}
+body.nf-layout-wide .nf-furusato-header__inner{
+  width:min(1460px,calc(100% - 32px))!important;
+}
+
+@media(max-width:1200px){
+  body.nf-layout-compact .nf-catalog-grid,
+  body.nf-layout-wide .nf-catalog-grid{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  }
+}
+
+@media(max-width:720px){
+  body.nf-layout-compact .nf-catalog-grid,
+  body.nf-layout-wide .nf-catalog-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+
+
+/* ========================================
+   v0.9.2 選択アクセント色をサイト全体へ統一
+======================================== */
+
+/* ページネーション */
+body.nf-furusato-shell .nf-catalog-page-button:hover{
+  border-color:var(--nf-accent)!important;
+  color:var(--nf-accent)!important;
+}
+body.nf-furusato-shell .nf-catalog-page-button.is-current{
+  border-color:var(--nf-accent)!important;
+  background:var(--nf-accent)!important;
+  color:#fff!important;
+}
+
+
+/* 検索UI */
+body.nf-furusato-shell .nf-catalog-filter-toggle[aria-expanded="true"],
+body.nf-furusato-shell .nf-catalog-browse-toggle[aria-expanded="true"]{
+  border-color:var(--nf-accent)!important;
+  color:var(--nf-accent-dark)!important;
+  background:var(--nf-accent-soft)!important;
+}
+body.nf-furusato-shell .nf-catalog-filters select:focus,
+body.nf-furusato-shell .nf-catalog-search-box input:focus{
+  border-color:var(--nf-accent)!important;
+  outline:2px solid color-mix(in srgb,var(--nf-accent) 18%,transparent);
+  outline-offset:0;
+}
+body.nf-furusato-shell .nf-catalog-loading{
+  background:var(--nf-accent-soft)!important;
+  color:var(--nf-accent-dark)!important;
+}
+
+/* 関連箇所の従来グリーン固定値を選択色に寄せる */
+body.nf-furusato-shell .nf-feature-municipality,
+body.nf-furusato-shell .nf-catalog-municipality,
+body.nf-furusato-shell .nf-single-location{
+  color:var(--nf-accent-dark)!important;
+}
+
+
+/* ========================================
+   v0.9.3 ステータス色はサイトテーマから独立
+======================================== */
+
+/* 共通 */
+body.nf-furusato-shell .nf-catalog-status,
+body.nf-furusato-shell .nf-single-status,
+body.nf-furusato-shell .nf-feature-badge,
+body.nf-furusato-shell .nf-card-special-badge,
+body.nf-furusato-shell .nf-portal-meta em{
+  border:1px solid transparent!important;
+  box-shadow:none!important;
+  font-weight:700!important;
+}
+
+/* 受付中：エメラルド */
+body.nf-furusato-shell .nf-catalog-status.is-open,
+body.nf-furusato-shell .nf-single-status.is-open,
+body.nf-furusato-shell .nf-portal-meta .is-in-stock{
+  background:#edf9f3!important;
+  border-color:#cdebdc!important;
+  color:#257257!important;
+}
+
+/* 先行予約：アンバー */
+body.nf-furusato-shell .nf-catalog-status.is-reserve,
+body.nf-furusato-shell .nf-single-status.is-reserve{
+  background:#fff7e7!important;
+  border-color:#f0d9a6!important;
+  color:#8a6516!important;
+}
+
+/* 受付期間外：ニュートラルグレー */
+body.nf-furusato-shell .nf-catalog-status.is-outside,
+body.nf-furusato-shell .nf-single-status.is-outside{
+  background:#f3f4f3!important;
+  border-color:#dcdfdc!important;
+  color:#727873!important;
+}
+
+/* 受付終了：ローズ */
+body.nf-furusato-shell .nf-catalog-status.is-closed,
+body.nf-furusato-shell .nf-single-status.is-closed,
+body.nf-furusato-shell .nf-portal-meta .is-out-stock{
+  background:#fff0f1!important;
+  border-color:#efcfd3!important;
+  color:#a04650!important;
+}
+
+/* 発送中：ブルー */
+body.nf-furusato-shell .nf-feature-badge.is-shipping,
+body.nf-furusato-shell .nf-card-special-badge.is-shipping{
+  background:#edf6ff!important;
+  border-color:#d0e6fb!important;
+  color:#2f6798!important;
+}
+
+/* まもなく発送：パープル */
+body.nf-furusato-shell .nf-feature-badge.is-soon,
+body.nf-furusato-shell .nf-card-special-badge.is-soon{
+  background:#f4effc!important;
+  border-color:#ded1f3!important;
+  color:#6b4a92!important;
+}
+
+/* 既存 is-season は発送状態に応じるまでの互換 fallback */
+body.nf-furusato-shell .nf-feature-badge.is-season,
+body.nf-furusato-shell .nf-card-special-badge.is-season{
+  background:#eef4fb!important;
+  border-color:#d6e2ef!important;
+  color:#486983!important;
+}
+
+body.nf-furusato-shell .nf-catalog-shipping-hint{
+  color:#596f80!important;
+}

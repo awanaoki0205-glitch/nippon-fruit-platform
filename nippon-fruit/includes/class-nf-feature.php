@@ -1,0 +1,20 @@
+<?php
+if ( ! defined('ABSPATH') ) exit;
+
+class NF_Feature {
+    const POST_TYPE='nf_feature';
+    public static function init(){add_action('init',array(__CLASS__,'register'));add_action('add_meta_boxes',array(__CLASS__,'boxes'));add_action('save_post_'.self::POST_TYPE,array(__CLASS__,'save'));add_filter('the_content',array(__CLASS__,'content'));}
+    public static function register(){register_post_type(self::POST_TYPE,array('labels'=>array('name'=>'特集管理','singular_name'=>'特集','add_new_item'=>'特集を追加','edit_item'=>'特集を編集'),'public'=>true,'show_ui'=>true,'show_in_menu'=>'nf-customer-dashboard','show_in_rest'=>true,'supports'=>array('title','editor','excerpt','thumbnail'),'rewrite'=>array('slug'=>NF_System_Page::base().'/feature','with_front'=>false),'capabilities'=>self::caps(),'map_meta_cap'=>false));}
+    private static function caps(){return array('edit_post'=>'nf_manage_features','read_post'=>'read','delete_post'=>'nf_manage_features','edit_posts'=>'nf_manage_features','edit_others_posts'=>'nf_manage_features','publish_posts'=>'nf_manage_features','read_private_posts'=>'nf_manage_features','delete_posts'=>'nf_manage_features','delete_private_posts'=>'nf_manage_features','delete_published_posts'=>'nf_manage_features','delete_others_posts'=>'nf_manage_features','edit_private_posts'=>'nf_manage_features','edit_published_posts'=>'nf_manage_features','create_posts'=>'nf_manage_features');}
+    public static function boxes(){add_meta_box('nf-feature-query','自動表示する検索条件',array(__CLASS__,'box'),self::POST_TYPE,'normal','high');}
+    public static function box($post){wp_nonce_field('nf_feature_save','nf_feature_nonce');$v=(array)get_post_meta($post->ID,'_nf_feature_query',true);$cats=get_terms(array('taxonomy'=>'nf_category','hide_empty'=>false));$munis=get_terms(array('taxonomy'=>'nf_municipality','hide_empty'=>false));?>
+      <p><label><strong>カテゴリ</strong><br><select name="nf_feature[category]"><option value="">指定なし</option><?php foreach((array)$cats as $t):if(is_wp_error($t))break;?><option value="<?php echo esc_attr($t->slug); ?>" <?php selected($v['category']??'',$t->slug); ?>><?php echo esc_html($t->name); ?></option><?php endforeach;?></select></label></p>
+      <p><label><strong>自治体</strong><br><select name="nf_feature[municipality]"><option value="">指定なし</option><?php foreach((array)$munis as $t):if(is_wp_error($t))break;?><option value="<?php echo esc_attr($t->slug); ?>" <?php selected($v['municipality']??'',$t->slug); ?>><?php echo esc_html($t->name); ?></option><?php endforeach;?></select></label></p>
+      <p><label>寄附額上限 <input type="number" min="0" step="1000" name="nf_feature[price_max]" value="<?php echo absint($v['price_max']??0); ?>">円</label>　<label><input type="checkbox" name="nf_feature[open_only]" value="1" <?php checked(!empty($v['open_only'])); ?>> 受付中のみ</label></p>
+      <p class="description">商品コピーは作成せず、保存した条件に一致する最新商品を自動表示します。</p>
+      <?php
+    }
+    public static function save($id){if(!isset($_POST['nf_feature_nonce'])||!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nf_feature_nonce'])),'nf_feature_save')||!current_user_can('nf_manage_features')||wp_is_post_revision($id))return;$r=(array)($_POST['nf_feature']??array());update_post_meta($id,'_nf_feature_query',array('category'=>sanitize_title(wp_unslash($r['category']??'')),'municipality'=>sanitize_title(wp_unslash($r['municipality']??'')),'price_max'=>absint($r['price_max']??0),'open_only'=>empty($r['open_only'])?0:1));}
+    public static function catalog_url($id){$q=(array)get_post_meta($id,'_nf_feature_query',true);$args=array();if(!empty($q['category']))$args['category']=$q['category'];if(!empty($q['municipality']))$args['municipality']=$q['municipality'];if(!empty($q['price_max']))$args['price_max']=absint($q['price_max']);if(!empty($q['open_only']))$args['status']='受付中';return add_query_arg($args,NF_System_Page::url());}
+    public static function content($content){if(!is_singular(self::POST_TYPE)||!in_the_loop()||!is_main_query())return $content;return $content.'<p class="nf-feature-open"><a class="button" href="'.esc_url(self::catalog_url(get_the_ID())).'">この特集の返礼品を見る</a></p>';}
+}
