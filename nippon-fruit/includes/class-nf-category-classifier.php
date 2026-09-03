@@ -312,6 +312,9 @@ class NF_Category_Classifier {
         $medium=class_exists('NF_Image_Category_Classifier')?(float)get_option(NF_Image_Category_Classifier::OPT_FINAL_MEDIUM,.70):.60;
         update_post_meta($post_id, NF_Category::CONFIDENCE_META, $status === 'manual' ? 'manual' : ($confidence >= $high ? 'high' : ($confidence >= $medium ? 'medium' : 'low')));
         if ($reason !== '') update_post_meta($post_id, NF_Category::REVIEW_REASON_META, sanitize_text_field($reason)); else delete_post_meta($post_id, NF_Category::REVIEW_REASON_META);
+        if (class_exists('NF_Classification_History')) {
+            NF_Classification_History::record($post_id, $status, $method, (float)$confidence, $reason);
+        }
     }
 
     public static function run_ai_queue() { NF_AI_Category_Classifier::process_queue(); }
