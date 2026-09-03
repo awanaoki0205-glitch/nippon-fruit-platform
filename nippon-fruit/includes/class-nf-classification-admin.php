@@ -13,6 +13,8 @@ class NF_Classification_Admin {
         add_action('edited_' . NF_Category::TAXONOMY, array(__CLASS__, 'save_term_fields'), 20);
         add_action('admin_post_nf_classification_requeue', array(__CLASS__, 'requeue'));
         add_action('wp_ajax_nf_classification_progress', array(__CLASS__, 'ajax_progress'));
+        add_action('wp_ajax_nf_classification_run_batch', array(__CLASS__, 'ajax_run_batch'));
+        add_action('admin_post_nf_classification_resume', array(__CLASS__, 'resume'));
         add_action('admin_post_nf_reclassify_product', array(__CLASS__, 'reclassify_product'));
     }
 
@@ -109,6 +111,14 @@ class NF_Classification_Admin {
         exit;
     }
 
+    public static function resume() {
+        if (!current_user_can('manage_options')) wp_die('権限がありません。');
+        check_admin_referer('nf_classification_resume');
+        if (NF_AI_Category_Classifier::pending_count() > 0) NF_AI_Category_Classifier::schedule(0);
+        wp_safe_redirect(add_query_arg('resumed','1',admin_url('edit.php?post_type=' . NF_Core::POST_TYPE . '&page=' . self::PAGE_SLUG)));
+        exit;
+    }
+
     public static function progress_payload() {
         $progress = NF_Category::get_reclassification_progress();
         $total = max(0, (int)($progress['total'] ?? 0));
@@ -118,21 +128,33 @@ class NF_Classification_Admin {
         $ai_total = max(0, (int)($progress['ai_total'] ?? 0));
         $ai_processed = max(0, min($ai_total, (int)($progress['ai_processed'] ?? 0)));
         $pending=self::count_status('ai_pending')+self::count_status('image_ai_pending');
-        $overall_processed=$phase==='ai'?max(0,$total-$pending):$processed;
+        $ai_errors=self::count_status('ai_error');
+        $unresolved=$pending+$ai_errors;
+        if ($phase === 'ai' && $unresolved > 0 && $state === 'completed') $state = 'running';
+        $overall_processed=$phase==='ai'?max(0,$total-$unresolved):$processed;
         $overall_remaining=max(0,$total-$overall_processed);
         $percent=$total>0?(int)floor(($overall_processed/$total)*100):0;
-        if ($state === 'completed') $percent = 100;
+        if ($state === 'completed' && $unresolved < 1) $percent = 100;
         $labels = array('idle'=>'待機中','queued'=>'開始待ち','running'=>'処理中','completed'=>'完了');
         $phase_labels = array('rule'=>'ルール分類','ai'=>'AI補完','done'=>'完了','idle'=>'');
-        $display_label=$state==='running'&&$phase==='ai'?'AI補完中（'.$pending.'件待ち）':trim(($labels[$state]??'待機中').' '.($phase_labels[$phase]??''));
+        $display_label=$state==='running'&&$phase==='ai'?'AI補完中（'.$pending.'件待ち'.($ai_errors?'・'.$ai_errors.'件エラー':'').'）':trim(($labels[$state]??'待機中').' '.($phase_labels[$phase]??''));
+        $next = wp_next_scheduled(NF_Category_Classifier::CRON_HOOK);
+        $last_started = (int)get_option(NF_AI_Category_Classifier::LAST_STARTED, 0);
+        $last_success = (int)get_option(NF_AI_Category_Classifier::LAST_SUCCESS, 0);
+        $last_error_at = (int)get_option(NF_AI_Category_Classifier::LAST_ERROR_AT, 0);
         return array(
             'state'=>$state, 'state_label'=>$labels[$state] ?? '待機中',
             'phase'=>$phase, 'phase_label'=>$phase_labels[$phase] ?? '', 'display_label'=>$display_label,
             'total'=>$total, 'processed'=>$overall_processed, 'remaining'=>$overall_remaining,
             'rule_processed'=>$processed, 'rule_total'=>$total,
             'ai_total'=>$ai_total, 'ai_processed'=>$ai_processed,
-            'pending'=>$pending, 'percent'=>$percent,
+            'pending'=>$pending, 'ai_errors'=>$ai_errors, 'percent'=>$percent,
             'updated_at'=>!empty($progress['updated_at']) ? wp_date('Y/m/d H:i:s',(int)$progress['updated_at']) : '',
+            'next_run'=>$next ? wp_date('Y/m/d H:i:s',(int)$next) : '',
+            'last_started'=>$last_started ? wp_date('Y/m/d H:i:s',$last_started) : '',
+            'last_success'=>$last_success ? wp_date('Y/m/d H:i:s',$last_success) : '',
+            'last_error'=>(string)get_option(NF_AI_Category_Classifier::LAST_ERROR, ''),
+            'last_error_at'=>$last_error_at ? wp_date('Y/m/d H:i:s',$last_error_at) : '',
         );
     }
 
@@ -140,6 +162,14 @@ class NF_Classification_Admin {
         check_ajax_referer('nf_classification_progress','nonce');
         if (!current_user_can('edit_posts')) wp_send_json_error(array('message'=>'権限がありません。'),403);
         wp_send_json_success(self::progress_payload());
+    }
+
+    public static function ajax_run_batch() {
+        check_ajax_referer('nf_classification_progress','nonce');
+        if (!current_user_can('manage_options')) wp_send_json_error(array('message'=>'権限がありません。'),403);
+        if (NF_AI_Category_Classifier::pending_count() < 1) wp_send_json_success(array('processed'=>false,'done'=>true));
+        $ran = NF_AI_Category_Classifier::process_queue(1);
+        wp_send_json_success(array('processed'=>(bool)$ran,'done'=>NF_AI_Category_Classifier::pending_count()<1));
     }
 
     public static function render_progress_panel() {
@@ -150,8 +180,10 @@ class NF_Classification_Admin {
           <div class="nf-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo esc_attr($data['percent']); ?>"><span style="width:<?php echo esc_attr($data['percent']); ?>%"></span></div>
           <div class="nf-progress-numbers"><b class="nf-progress-percent"><?php echo intval($data['percent']); ?>%</b><span>最終処理済み <b class="nf-progress-processed"><?php echo intval($data['processed']); ?></b> / <b class="nf-progress-total"><?php echo intval($data['total']); ?></b>件</span><span>未完了 <b class="nf-progress-remaining"><?php echo intval($data['remaining']); ?></b>件</span><small class="nf-progress-updated"><?php echo esc_html($data['updated_at'] ? '最終更新 '.$data['updated_at'] : 'まだ実行されていません'); ?></small></div>
           <div class="nf-progress-stages"><span>ルール判定 <b class="nf-progress-rule-processed"><?php echo intval($data['rule_processed']); ?></b> / <b class="nf-progress-rule-total"><?php echo intval($data['rule_total']); ?></b>件</span><span>AI補完 <b class="nf-progress-ai-processed"><?php echo intval($data['ai_processed']); ?></b> / <b class="nf-progress-ai-total"><?php echo intval($data['ai_total']); ?></b>件</span><span>AI待ち <b class="nf-progress-pending"><?php echo intval($data['pending']); ?></b>件</span></div>
+          <div class="nf-progress-diagnostics" style="margin-top:10px;color:#646970"><span>次回実行: <b class="nf-progress-next"><?php echo esc_html($data['next_run'] ?: '未予約'); ?></b></span>　<span>最終AI成功: <b class="nf-progress-success"><?php echo esc_html($data['last_success'] ?: 'まだありません'); ?></b></span><div class="nf-progress-error" style="<?php echo $data['last_error'] ? '' : 'display:none'; ?>;margin-top:6px;color:#b32d2e">直近エラー: <b><?php echo esc_html($data['last_error']); ?></b> <small><?php echo esc_html($data['last_error_at']); ?></small></div></div>
+          <?php if (current_user_can('manage_options')): ?><p style="margin:12px 0 0"><a class="button button-secondary" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=nf_classification_resume'),'nf_classification_resume')); ?>">AI処理を再開</a></p><?php endif; ?>
         </section>
-        <script>(function(){var root=document.getElementById('nf-classification-progress');if(!root||root.dataset.polling)return;root.dataset.polling='1';function put(s,v){var e=root.querySelector(s);if(e)e.textContent=v}function poll(){var body=new URLSearchParams({action:'nf_classification_progress',nonce:root.dataset.nonce});fetch(ajaxurl,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()}).then(function(r){return r.json()}).then(function(r){if(!r.success)return;var d=r.data;put('.nf-progress-state',d.display_label);put('.nf-progress-percent',d.percent+'%');put('.nf-progress-processed',d.processed);put('.nf-progress-total',d.total);put('.nf-progress-remaining',d.remaining);put('.nf-progress-rule-processed',d.rule_processed);put('.nf-progress-rule-total',d.rule_total);put('.nf-progress-ai-processed',d.ai_processed);put('.nf-progress-ai-total',d.ai_total);put('.nf-progress-pending',d.pending);put('.nf-progress-updated',d.updated_at?'最終更新 '+d.updated_at:'まだ実行されていません');var bar=root.querySelector('.nf-progress-track');if(bar){bar.setAttribute('aria-valuenow',d.percent);bar.querySelector('span').style.width=d.percent+'%'}}).catch(function(){}).finally(function(){window.setTimeout(poll,3000)})}window.setTimeout(poll,1000)})();</script>
+        <script>(function(){var root=document.getElementById('nf-classification-progress');if(!root||root.dataset.polling)return;root.dataset.polling='1';var running=false;function put(s,v){var e=root.querySelector(s);if(e)e.textContent=v}function request(action){var body=new URLSearchParams({action:action,nonce:root.dataset.nonce});return fetch(ajaxurl,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()}).then(function(r){return r.json()})}function render(d){put('.nf-progress-state',d.display_label);put('.nf-progress-percent',d.percent+'%');put('.nf-progress-processed',d.processed);put('.nf-progress-total',d.total);put('.nf-progress-remaining',d.remaining);put('.nf-progress-rule-processed',d.rule_processed);put('.nf-progress-rule-total',d.rule_total);put('.nf-progress-ai-processed',d.ai_processed);put('.nf-progress-ai-total',d.ai_total);put('.nf-progress-pending',d.pending);put('.nf-progress-updated',d.updated_at?'最終更新 '+d.updated_at:'まだ実行されていません');put('.nf-progress-next',d.next_run||'未予約');put('.nf-progress-success',d.last_success||'まだありません');var err=root.querySelector('.nf-progress-error');if(err){err.style.display=d.last_error?'block':'none';if(d.last_error)err.innerHTML='直近エラー: <b></b> <small></small>',err.querySelector('b').textContent=d.last_error,err.querySelector('small').textContent=d.last_error_at||''}var bar=root.querySelector('.nf-progress-track');if(bar){bar.setAttribute('aria-valuenow',d.percent);bar.querySelector('span').style.width=d.percent+'%'}return d}function tick(){request('nf_classification_progress').then(function(r){if(!r.success)return null;return render(r.data)}).then(function(d){if(!d||d.pending<1||running)return;running=true;return request('nf_classification_run_batch').finally(function(){running=false})}).catch(function(){}).finally(function(){window.setTimeout(tick,3000)})}window.setTimeout(tick,500)})();</script>
     <?php }
 
     public static function page() {

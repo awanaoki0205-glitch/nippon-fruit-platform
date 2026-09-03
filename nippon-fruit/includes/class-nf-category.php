@@ -758,14 +758,16 @@ class NF_Category {
         $progress = self::get_reclassification_progress();
         if (!$progress || !in_array(($progress['state'] ?? ''), array('running','queued'), true)) return;
         $pending = NF_Classification_Admin::count_status('ai_pending') + NF_Classification_Admin::count_status('image_ai_pending');
+        $errors = NF_Classification_Admin::count_status('ai_error');
+        $unresolved = $pending + $errors;
         if (($progress['phase'] ?? '') !== 'ai') {
             $progress['phase'] = 'ai';
-            $progress['ai_total'] = $pending;
+            $progress['ai_total'] = $unresolved;
         }
-        $progress['ai_total'] = max((int)($progress['ai_total'] ?? 0), $pending);
-        $progress['ai_processed'] = max(0, (int)$progress['ai_total'] - $pending);
+        $progress['ai_total'] = max((int)($progress['ai_total'] ?? 0), $unresolved);
+        $progress['ai_processed'] = max(0, (int)$progress['ai_total'] - $unresolved);
         $progress['updated_at'] = time();
-        if ($pending < 1) {
+        if ($unresolved < 1) {
             $progress['state'] = 'completed';
             $progress['completed_at'] = time();
         }

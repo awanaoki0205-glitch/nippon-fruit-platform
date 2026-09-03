@@ -8,17 +8,62 @@ class NF_AI_Category_Classifier {
     const OPT_HIGH = 'nf_ai_classification_high_threshold';
     const OPT_MEDIUM = 'nf_ai_classification_medium_threshold';
     const OPT_BATCH = 'nf_ai_classification_batch_size';
+    const QUEUE_LOCK = 'nf_ai_category_queue_lock';
+    const LAST_STARTED = 'nf_ai_category_last_started';
+    const LAST_SUCCESS = 'nf_ai_category_last_success';
+    const LAST_ERROR = 'nf_ai_category_last_error';
+    const LAST_ERROR_AT = 'nf_ai_category_last_error_at';
 
-    public static function init() {}
+    public static function init() {
+        // WP-Cron is traffic driven. Recover a lost single event whenever an
+        // administrator returns to WordPress, without running the API call in
+        // the page-rendering request itself.
+        add_action('admin_init', array(__CLASS__, 'watchdog'));
+    }
     public static function enabled() { return get_option(self::OPT_ENABLED, '0') === '1' && trim((string)get_option(self::OPT_API_KEY, '')) !== ''; }
 
     public static function schedule($post_id) {
         if (!wp_next_scheduled(NF_Category_Classifier::CRON_HOOK)) wp_schedule_single_event(time() + 20, NF_Category_Classifier::CRON_HOOK);
     }
 
-    public static function process_queue() {
-        if (!self::enabled()) return;
-        $limit = max(1, min(20, (int)get_option(self::OPT_BATCH, 3)));
+    public static function watchdog() {
+        if (!self::enabled() || get_transient('nf_ai_category_watchdog')) return;
+        set_transient('nf_ai_category_watchdog', '1', MINUTE_IN_SECONDS);
+        $next = wp_next_scheduled(NF_Category_Classifier::CRON_HOOK);
+        if ($next && $next < time() - 5 * MINUTE_IN_SECONDS) {
+            wp_unschedule_event($next, NF_Category_Classifier::CRON_HOOK);
+            $next = false;
+        }
+        if (self::pending_count() > 0 && !$next) self::schedule(0);
+    }
+
+    public static function pending_count() {
+        $q = new WP_Query(array(
+            'post_type'=>NF_Core::POST_TYPE, 'post_status'=>'any', 'posts_per_page'=>1,
+            'fields'=>'ids', 'no_found_rows'=>false,
+            'meta_query'=>array('relation'=>'OR',
+                array('key'=>NF_Category_Classifier::STATUS_META,'value'=>'ai_pending'),
+                array('key'=>NF_Category_Classifier::STATUS_META,'value'=>'image_ai_pending'),
+            ),
+        ));
+        return (int)$q->found_posts;
+    }
+
+    private static function acquire_lock() {
+        $now = time();
+        $expires = (int)get_option(self::QUEUE_LOCK, 0);
+        if ($expires > $now) return false;
+        if ($expires) delete_option(self::QUEUE_LOCK);
+        return add_option(self::QUEUE_LOCK, $now + 5 * MINUTE_IN_SECONDS, '', 'no');
+    }
+
+    private static function release_lock() { delete_option(self::QUEUE_LOCK); }
+
+    public static function process_queue($limit_override = 0) {
+        if (!self::enabled() || !self::acquire_lock()) return false;
+        update_option(self::LAST_STARTED, time(), false);
+        $limit = $limit_override > 0 ? (int)$limit_override : (int)get_option(self::OPT_BATCH, 3);
+        $limit = max(1, min(20, $limit));
         $q = new WP_Query(array(
             'post_type'=>NF_Core::POST_TYPE,'post_status'=>'any','posts_per_page'=>$limit,'fields'=>'ids','orderby'=>'modified','order'=>'ASC',
             'meta_query'=>array('relation'=>'OR',
@@ -40,7 +85,9 @@ class NF_AI_Category_Classifier {
             else self::classify((int)$post_id);
         }
         if (class_exists('NF_Category')) NF_Category::update_ai_progress();
-        if ($q->found_posts > $limit) self::schedule(0);
+        self::release_lock();
+        if (self::pending_count() > 0) self::schedule(0);
+        return true;
     }
 
     public static function category_catalog() {
@@ -124,6 +171,9 @@ class NF_AI_Category_Classifier {
         $result['rejected_categories'] = array_values(array_intersect($allowed, array_map('intval',(array)$result['rejected_categories'])));
         update_post_meta($post_id, NF_Category_Classifier::AI_HASH_META, $hash);
         update_post_meta($post_id, NF_Category_Classifier::AI_RESULT_META, $result);
+        update_option(self::LAST_SUCCESS, time(), false);
+        delete_option(self::LAST_ERROR);
+        delete_option(self::LAST_ERROR_AT);
         return self::accept($post_id, $result, false);
     }
 
@@ -196,6 +246,8 @@ class NF_AI_Category_Classifier {
         update_post_meta($post_id, NF_Category_Classifier::AI_RETRY_META, time() + HOUR_IN_SECONDS);
         NF_Category_Classifier::set_status($post_id, 'ai_error', 'ai', 0, 'AI分類エラー: ' . sanitize_text_field($message));
         if (class_exists('NF_Classification_Metrics')) NF_Classification_Metrics::increment('api_errors');
+        update_option(self::LAST_ERROR, sanitize_text_field($message), false);
+        update_option(self::LAST_ERROR_AT, time(), false);
         if (!wp_next_scheduled(NF_Category_Classifier::CRON_HOOK)) wp_schedule_single_event(time() + HOUR_IN_SECONDS, NF_Category_Classifier::CRON_HOOK);
     }
 }
