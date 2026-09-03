@@ -278,6 +278,7 @@ class NF_Classification_History {
             'algorithm'=>self::blank_stage(),'text_ai'=>self::blank_stage(),'image_ai'=>self::blank_stage(),'final'=>self::blank_stage(),
             'cumulative_algorithm'=>self::blank_stage(),'cumulative_text'=>self::blank_stage(),'cumulative_image'=>self::blank_stage(),
             'route'=>array('algorithm'=>0,'text_ai'=>0,'image_ai'=>0),'buckets'=>array(),
+            'image_audit'=>array('used'=>0,'verified'=>0,'agree'=>0,'agree_correct'=>0,'disagree'=>0,'image_correct'=>0,'text_correct'=>0,'corrected'=>0,'reverse'=>0),
         );
         foreach (self::all_ids() as $post_id) {
             $stats['total']++;
@@ -302,6 +303,27 @@ class NF_Classification_History {
             self::add_stage($stats['cumulative_text'],$through_text,$gold,true);
             $through_image = $image_used ? ($row['final']['categories']??array()) : $through_text;
             self::add_stage($stats['cumulative_image'],$through_image,$gold,true);
+            if ($image_used) {
+                $stats['image_audit']['used']++;
+                if ($gold) {
+                    $stats['image_audit']['verified']++;
+                    $text_categories = self::clean_ids($row['text_ai']['categories']??array());
+                    $image_categories = self::clean_ids($row['image_ai']['categories']??array());
+                    $text_correct = self::same_categories($text_categories,$gold);
+                    $image_correct = self::same_categories($image_categories,$gold);
+                    $agree = $text_categories && $image_categories && self::same_categories($text_categories,$image_categories);
+                    if ($text_correct) $stats['image_audit']['text_correct']++;
+                    if ($image_correct) $stats['image_audit']['image_correct']++;
+                    if ($agree) {
+                        $stats['image_audit']['agree']++;
+                        if ($image_correct) $stats['image_audit']['agree_correct']++;
+                    } else {
+                        $stats['image_audit']['disagree']++;
+                    }
+                    if (!$text_correct && $image_correct) $stats['image_audit']['corrected']++;
+                    if ($text_correct && !$image_correct) $stats['image_audit']['reverse']++;
+                }
+            }
             if ($gold) {
                 $confidence = max(0,min(1,(float)($row['final']['confidence']??0)));
                 $bucket = $confidence >= .95 ? '95〜100%' : ($confidence >= .90 ? '90〜94%' : ($confidence >= .80 ? '80〜89%' : ($confidence >= .70 ? '70〜79%' : '70%未満')));
@@ -375,6 +397,8 @@ class NF_Classification_History {
         <div class="nf-accuracy-panel"><h2>段階別の実測精度</h2><table class="widefat striped"><thead><tr><th>判定方式</th><th>処理／使用件数</th><th>人間確認済み</th><th>正解</th><th>誤分類</th><th>実測精度</th></tr></thead><tbody><?php self::metric_row('Algorithm',$s['algorithm']); self::metric_row('Text AI',$s['text_ai']); self::metric_row('Image AI',$s['image_ai']); self::metric_row('Final',$s['final']); ?></tbody></table></div>
         <?php $ca=self::accuracy($s['cumulative_algorithm']);$ct=self::accuracy($s['cumulative_text']);$ci=self::accuracy($s['cumulative_image']);$cf=self::accuracy($s['final']); ?>
         <div class="nf-accuracy-panel"><h2>最終分類に対する各処理段階の一致率</h2><p>人間が正解確認した最終カテゴリを基準に、各途中段階の分類がどこまで一致していたかを示します。AIを使用していない商品も含め、同じ確認済み商品を分母にしています。</p><table class="widefat striped"><tbody><tr><th>Algorithm判定時点</th><td><?php echo esc_html($ca===null?'—':number_format_i18n($ca,2).'%'); ?></td><td><?php echo intval($s['cumulative_algorithm']['correct']).' / '.intval($s['cumulative_algorithm']['verified']); ?>件</td></tr><tr><th>Text AI適用後</th><td><?php echo esc_html($ct===null?'—':number_format_i18n($ct,2).'%'); ?></td><td><?php echo intval($s['cumulative_text']['correct']).' / '.intval($s['cumulative_text']['verified']); ?>件</td></tr><tr><th>Image AI適用後</th><td><?php echo esc_html($ci===null?'—':number_format_i18n($ci,2).'%'); ?></td><td><?php echo intval($s['cumulative_image']['correct']).' / '.intval($s['cumulative_image']['verified']); ?>件</td></tr><tr class="nf-final-accuracy"><th>最終分類（整合性補正・手動確定を含む）</th><td><strong><?php echo esc_html($cf===null?'—':number_format_i18n($cf,2).'%'); ?></strong></td><td><strong><?php echo intval($s['final']['correct']).' / '.intval($s['final']['verified']); ?>件</strong></td></tr></tbody></table><?php if($ca!==null&&$ct!==null): ?><p class="nf-improvement">Text AI適用後の改善：<?php echo esc_html(sprintf('%+.2f',$ct-$ca)); ?>pt　<?php if($ci!==null): ?>Image AI適用後の改善：<?php echo esc_html(sprintf('%+.2f',$ci-$ct)); ?>pt<?php endif; ?><?php if($cf!==null&&$ci!==null): ?>　最終整合性補正等による改善：<?php echo esc_html(sprintf('%+.2f',$cf-$ci)); ?>pt<?php endif; ?></p><?php endif; ?></div>
+        <?php $ia=$s['image_audit']; ?>
+        <div class="nf-accuracy-panel"><h2>Image AIの二重チェック・監査効果</h2><p>Image AIは正解数を増やす修正役だけでなく、Text AIとは別の画像情報による裏付けと不一致検出の役割があります。以下はカテゴリ一式が完全一致した件数です。</p><div class="nf-route"><div><strong>画像AI使用</strong><p><?php echo intval($ia['used']); ?>件</p></div><div><strong>人間確認済み</strong><p><?php echo intval($ia['verified']); ?>件</p></div><div><strong>Text・Image一致</strong><p><?php echo intval($ia['agree']); ?>件</p></div><div><strong>一致のうち正解</strong><p><?php echo intval($ia['agree_correct']); ?>件</p></div><div><strong>Text・Image不一致</strong><p><?php echo intval($ia['disagree']); ?>件</p></div><div><strong>画像判定が正解</strong><p><?php echo intval($ia['image_correct']); ?>件</p></div></div><table class="widefat striped"><tbody><tr><th>Image AIがText AIの不正解を正解化</th><td><strong><?php echo intval($ia['corrected']); ?>件</strong></td><td>分類精度への直接的な修正貢献</td></tr><tr><th>Text AIは正解・Image AIは不一致</th><td><?php echo intval($ia['reverse']); ?>件</td><td>画像だけで上書きせず、要確認にすべき候補</td></tr><tr><th>Image AI対象内の最終正解一致</th><td><?php echo intval($ia['image_correct']).' / '.intval($ia['verified']); ?>件</td><td>画像証拠単独の完全一致</td></tr></tbody></table><p class="description">全体への改善が0.00ptでも、Text AIとの一致は裏付け、不一致は誤確定を防ぐ警告として価値があります。</p></div>
         <div class="nf-accuracy-panel"><h2>各判定方式の処理比率</h2><div class="nf-route"><?php foreach(array('algorithm'=>'Algorithmのみ','text_ai'=>'Text AI使用','image_ai'=>'Image AI使用') as $key=>$label): ?><div><strong><?php echo esc_html($label); ?></strong><p><?php echo esc_html(number_format_i18n(self::rate($s['route'][$key],$s['total']),2)); ?>%（<?php echo intval($s['route'][$key]); ?>件）</p></div><?php endforeach; ?></div></div>
         <div class="nf-accuracy-panel"><h2>最終信頼度別の実測正解率</h2><table class="widefat striped"><thead><tr><th>信頼度帯</th><th>実測正解率</th><th>正解／検証</th></tr></thead><tbody><?php foreach(array('95〜100%','90〜94%','80〜89%','70〜79%','70%未満') as $bucket): $b=$s['buckets'][$bucket]??array('verified'=>0,'correct'=>0); ?><tr><th><?php echo esc_html($bucket); ?></th><td><?php echo $b['verified']?esc_html(number_format_i18n(self::rate($b['correct'],$b['verified']),2)).'%':'—'; ?></td><td><?php echo intval($b['correct']).' / '.intval($b['verified']); ?>件</td></tr><?php endforeach; ?></tbody></table></div>
         <div class="nf-accuracy-panel"><h2>要確認商品</h2>
