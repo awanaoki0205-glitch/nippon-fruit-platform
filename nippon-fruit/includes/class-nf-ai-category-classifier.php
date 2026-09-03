@@ -147,7 +147,12 @@ class NF_AI_Category_Classifier {
         $hash = hash('sha256', wp_json_encode(array($input, $catalog, $rule_result, $current_terms)));
         $cached_hash = get_post_meta($post_id, NF_Category_Classifier::AI_HASH_META, true);
         $cached = get_post_meta($post_id, NF_Category_Classifier::AI_RESULT_META, true);
-        if ($cached_hash === $hash && is_array($cached)) return self::accept($post_id, $cached, true);
+        if ($cached_hash === $hash && is_array($cached)) {
+            update_option(self::LAST_SUCCESS, time(), false);
+            delete_option(self::LAST_ERROR);
+            delete_option(self::LAST_ERROR_AT);
+            return self::accept($post_id, $cached, true);
+        }
 
         $allowed = array_map('intval', wp_list_pluck($catalog, 'id'));
         $prompt = "登録済みカテゴリだけから返礼品を分類してください。商品情報に明確な根拠が存在するカテゴリのみ選択し、根拠がない場合は推測しないでください。商品名を最優先し、説明は補助情報です。発送月だけで梨品種等を推測してはいけません。単品では含まれない別品目を付けず、定期便・詰め合わせだけ実際に含まれる複数品目を許可します。判断不能ならunclassified=true、requires_review=trueを返してください。\n\n商品:\n" . wp_json_encode($input, JSON_UNESCAPED_UNICODE) . "\n\n抽出済み属性:\n" . wp_json_encode($attributes, JSON_UNESCAPED_UNICODE) . "\n\n既存ルール判定:\n" . wp_json_encode($rule_result, JSON_UNESCAPED_UNICODE) . "\n\n現在カテゴリID:\n" . wp_json_encode($current_terms) . "\n\n利用可能カテゴリ・階層・排他関係:\n" . wp_json_encode($catalog, JSON_UNESCAPED_UNICODE);
@@ -225,7 +230,7 @@ class NF_AI_Category_Classifier {
         $requested_stage=sanitize_key((string)get_post_meta($post_id,'_nf_classification_requested_stage',true));
         $images=NF_Image_Category_Classifier::enabled()?NF_Image_Category_Classifier::image_urls($post_id,1):array();
         if (self::should_use_image($result,$logical_conflict,$requested_stage,!empty($images))) {
-                self::set_status($post_id,'image_ai_pending','text_ai',$confidence,'テキスト判定の根拠が不足しているため画像確認待ち');
+                NF_Category_Classifier::set_status($post_id,'image_ai_pending','text_ai',$confidence,'テキスト判定の根拠が不足しているため画像確認待ち');
                 self::schedule($post_id);
                 return;
         }
