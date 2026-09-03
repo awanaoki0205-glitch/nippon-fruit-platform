@@ -59,35 +59,48 @@ class NF_AI_Category_Classifier {
 
     private static function release_lock() { delete_option(self::QUEUE_LOCK); }
 
+    public static function record_queue_error($message) {
+        update_option(self::LAST_ERROR, sanitize_text_field((string)$message), false);
+        update_option(self::LAST_ERROR_AT, time(), false);
+    }
+
     public static function process_queue($limit_override = 0) {
         if (!self::enabled() || !self::acquire_lock()) return false;
         update_option(self::LAST_STARTED, time(), false);
-        $limit = $limit_override > 0 ? (int)$limit_override : (int)get_option(self::OPT_BATCH, 3);
-        $limit = max(1, min(20, $limit));
-        $q = new WP_Query(array(
-            'post_type'=>NF_Core::POST_TYPE,'post_status'=>'any','posts_per_page'=>$limit,'fields'=>'ids','orderby'=>'modified','order'=>'ASC',
-            'meta_query'=>array('relation'=>'OR',
-                array('key'=>NF_Category_Classifier::STATUS_META,'value'=>'ai_pending'),
-                array('key'=>NF_Category_Classifier::STATUS_META,'value'=>'image_ai_pending'),
-                array('relation'=>'AND',
-                    array('key'=>NF_Category_Classifier::STATUS_META,'value'=>'ai_error'),
-                    array('relation'=>'OR',
-                        array('key'=>NF_Category_Classifier::AI_RETRY_META,'value'=>time(),'compare'=>'<=','type'=>'NUMERIC'),
-                        array('key'=>NF_Image_Category_Classifier::RETRY_META,'value'=>time(),'compare'=>'<=','type'=>'NUMERIC'),
+        $ran = false;
+        try {
+            $limit = $limit_override > 0 ? (int)$limit_override : (int)get_option(self::OPT_BATCH, 3);
+            $limit = max(1, min(20, $limit));
+            $q = new WP_Query(array(
+                'post_type'=>NF_Core::POST_TYPE,'post_status'=>'any','posts_per_page'=>$limit,'fields'=>'ids','orderby'=>'modified','order'=>'ASC',
+                'meta_query'=>array('relation'=>'OR',
+                    array('key'=>NF_Category_Classifier::STATUS_META,'value'=>'ai_pending'),
+                    array('key'=>NF_Category_Classifier::STATUS_META,'value'=>'image_ai_pending'),
+                    array('relation'=>'AND',
+                        array('key'=>NF_Category_Classifier::STATUS_META,'value'=>'ai_error'),
+                        array('relation'=>'OR',
+                            array('key'=>NF_Category_Classifier::AI_RETRY_META,'value'=>time(),'compare'=>'<=','type'=>'NUMERIC'),
+                            array('key'=>NF_Image_Category_Classifier::RETRY_META,'value'=>time(),'compare'=>'<=','type'=>'NUMERIC'),
+                        ),
                     ),
                 ),
-            ),
-        ));
-        foreach ($q->posts as $post_id) {
-            $status=get_post_meta($post_id,NF_Category_Classifier::STATUS_META,true);
-            $method=get_post_meta($post_id,NF_Category_Classifier::METHOD_META,true);
-            if (($status==='image_ai_pending'||($status==='ai_error'&&$method==='image_ai')) && class_exists('NF_Image_Category_Classifier')) NF_Image_Category_Classifier::classify((int)$post_id);
-            else self::classify((int)$post_id);
+            ));
+            if (!$q->posts && self::pending_count() > 0) self::record_queue_error('AI待ち商品を取得できませんでした。投稿状態または検索条件を確認してください。');
+            foreach ($q->posts as $post_id) {
+                $status=get_post_meta($post_id,NF_Category_Classifier::STATUS_META,true);
+                $method=get_post_meta($post_id,NF_Category_Classifier::METHOD_META,true);
+                if (($status==='image_ai_pending'||($status==='ai_error'&&$method==='image_ai')) && class_exists('NF_Image_Category_Classifier')) NF_Image_Category_Classifier::classify((int)$post_id);
+                else self::classify((int)$post_id);
+                $ran = true;
+            }
+            if (class_exists('NF_Category')) NF_Category::update_ai_progress();
+        } catch (Throwable $e) {
+            self::record_queue_error('AI処理内部エラー: ' . $e->getMessage());
+        } finally {
+            self::release_lock();
         }
-        if (class_exists('NF_Category')) NF_Category::update_ai_progress();
-        self::release_lock();
         if (self::pending_count() > 0) self::schedule(0);
-        return true;
+        return $ran;
     }
 
     public static function category_catalog() {
@@ -246,8 +259,7 @@ class NF_AI_Category_Classifier {
         update_post_meta($post_id, NF_Category_Classifier::AI_RETRY_META, time() + HOUR_IN_SECONDS);
         NF_Category_Classifier::set_status($post_id, 'ai_error', 'ai', 0, 'AI分類エラー: ' . sanitize_text_field($message));
         if (class_exists('NF_Classification_Metrics')) NF_Classification_Metrics::increment('api_errors');
-        update_option(self::LAST_ERROR, sanitize_text_field($message), false);
-        update_option(self::LAST_ERROR_AT, time(), false);
+        self::record_queue_error($message);
         if (!wp_next_scheduled(NF_Category_Classifier::CRON_HOOK)) wp_schedule_single_event(time() + HOUR_IN_SECONDS, NF_Category_Classifier::CRON_HOOK);
     }
 }
