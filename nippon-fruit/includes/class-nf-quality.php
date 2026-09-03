@@ -31,7 +31,7 @@ class NF_Quality {
         $locked = get_post_meta($post->ID, NF_Category::CLASSIFICATION_LOCK_META, true) === '1';
         $confidence = get_post_meta($post->ID, NF_Category::CONFIDENCE_META, true) ?: '未判定';
         $status = get_post_meta($post->ID, NF_Category_Classifier::STATUS_META, true) ?: '未判定';
-        $status_labels = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み（旧）','text_ai_classified'=>'テキストAI判定済み','image_ai_classified'=>'画像AI判定済み','ai_pending'=>'テキストAI待ち','image_ai_pending'=>'画像AI待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定');
+        $status_labels = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み','text_ai_classified'=>'テキストAI判定済み','image_ai_classified'=>'画像AI判定済み','ai_pending'=>'テキストAI待ち','image_ai_pending'=>'画像AI待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定');
         $labels = array('high'=>'高い','medium'=>'要確認','low'=>'低い','manual'=>'手動確定');
         $terms=wp_get_post_terms($post->ID,NF_Category::TAXONOMY,array('fields'=>'names')); $terms=is_wp_error($terms)?array():$terms;
         $reason=get_post_meta($post->ID,NF_Category::REVIEW_REASON_META,true);
@@ -78,7 +78,7 @@ class NF_Quality {
     public static function column($column, $post_id) {
         if ($column !== 'nf_quality') return;
         $value = get_post_meta($post_id, NF_Category_Classifier::STATUS_META, true);
-        $labels = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み（旧）','text_ai_classified'=>'テキストAI判定済み','image_ai_classified'=>'画像AI判定済み','ai_pending'=>'テキストAI待ち','image_ai_pending'=>'画像AI待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定');
+        $labels = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み','text_ai_classified'=>'テキストAI判定済み','image_ai_classified'=>'画像AI判定済み','ai_pending'=>'テキストAI待ち','image_ai_pending'=>'画像AI待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定');
         echo esc_html(isset($labels[$value]) ? $labels[$value] : '未判定');
     }
 

@@ -24,4 +24,5 @@
 .nf-progress-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:14px}.nf-progress-heading h2{margin:0 0 4px}.nf-progress-heading p{margin:0;color:#646970}.nf-progress-state{padding:6px 12px;border-radius:999px;background:#edf7ef;color:#176b31;white-space:nowrap}
 .nf-progress-track{height:14px;overflow:hidden;border-radius:999px;background:#e8ece9}.nf-progress-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#198b3a,#38b45b);transition:width .35s ease}
 .nf-progress-numbers{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;margin-top:12px;color:#50575e}.nf-progress-numbers .nf-progress-percent{color:#176b31;font-size:22px}.nf-progress-updated{margin-left:auto;color:#787c82}
+.nf-progress-stages{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid #edf0ed;color:#50575e;font-size:13px}.nf-progress-stages b{color:#1d2327}
 @media(max-width:900px){.nf-hub-cards{grid-template-columns:1fr}.nf-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
