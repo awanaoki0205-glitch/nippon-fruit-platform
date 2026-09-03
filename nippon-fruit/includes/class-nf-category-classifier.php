@@ -33,6 +33,15 @@ class NF_Category_Classifier {
     public static function meta_changed($meta_id, $post_id, $key, $value) {
         if (self::$running || strpos((string)$key, '_nf_classification_') === 0 || strpos((string)$key, '_nf_ai_classification_') === 0) return;
         if (get_post_type($post_id) !== NF_Core::POST_TYPE) return;
+        $image_keys=array('_thumbnail_id','_nf_rakuten_image_url','_nf_rakuten_image_urls','_nf_yahoo_image_url','_nf_yahoo_image_urls','_nf_manual_image_urls');
+        if (in_array($key,$image_keys,true)) {
+            delete_post_meta($post_id,NF_Image_Category_Classifier::HASH_META);
+            $text=get_post_meta($post_id,self::AI_RESULT_META,true);
+            if (is_array($text) && NF_Image_Category_Classifier::enabled()) {
+                self::set_status($post_id,'image_ai_pending','text_ai',(float)($text['text_confidence']??$text['confidence']??0),'商品画像が変更されたため画像を再確認します');
+                NF_AI_Category_Classifier::schedule($post_id); return;
+            }
+        }
         $relevant = array('_nf_rakuten_item_name','_nf_rakuten_description','_nf_yahoo_item_name','_nf_yahoo_variants','_nf_capacity','_nf_quantity','_nf_size','_nf_rakuten_genre','_nf_yahoo_category');
         if (in_array($key, $relevant, true)) self::queue((int)$post_id);
     }
@@ -57,11 +66,17 @@ class NF_Category_Classifier {
                 wp_strip_all_tags((string)get_post_meta($post_id, '_nf_yahoo_item_name', true)),
             )),
             'description' => wp_strip_all_tags((string)get_post_meta($post_id, '_nf_rakuten_description', true) . ' ' . (string)$post->post_content),
+            'catchcopy' => wp_strip_all_tags((string)$post->post_excerpt),
             'capacity' => (string)get_post_meta($post_id, '_nf_capacity', true),
             'quantity' => (string)get_post_meta($post_id, '_nf_quantity', true),
             'size' => (string)get_post_meta($post_id, '_nf_size', true),
             'source_categories' => array_filter(array((string)get_post_meta($post_id, '_nf_rakuten_genre', true), (string)get_post_meta($post_id, '_nf_yahoo_category', true))),
             'variants' => get_post_meta($post_id, '_nf_yahoo_variants', true),
+            'shipping' => array_filter(array(
+                'sale_start'=>(string)get_post_meta($post_id,'_nf_rakuten_sale_start',true),
+                'sale_end'=>(string)get_post_meta($post_id,'_nf_rakuten_sale_end',true),
+                'status'=>(string)get_post_meta($post_id,'_nf_status',true),
+            )),
         );
         return $fields;
     }
@@ -120,6 +135,7 @@ class NF_Category_Classifier {
             return;
         }
         $input = self::input($post_id);
+        $requested_stage = sanitize_key((string)get_post_meta($post_id,'_nf_classification_requested_stage',true));
         if (!$input) return;
         $terms = get_terms(array('taxonomy'=>NF_Category::TAXONOMY, 'hide_empty'=>false));
         if (is_wp_error($terms)) return;
@@ -247,9 +263,24 @@ class NF_Category_Classifier {
             $reason = implode(' / ', $result['reasons']);
             if (!empty($validation['conflicts'])) $reason = 'カテゴリ矛盾を自動補正: ' . implode('、', wp_list_pluck($validation['conflicts'], 'rejected_root'));
             self::set_status($post_id, $status, 'rule', $confidence, $reason);
+            if (class_exists('NF_Classification_Evidence')) {
+                update_post_meta($post_id,NF_Classification_Evidence::FINAL_CONFIDENCE_META,$confidence);
+                update_post_meta($post_id,NF_Classification_Evidence::TEXT_CONFIDENCE_META,'');
+                update_post_meta($post_id,NF_Classification_Evidence::IMAGE_CONFIDENCE_META,'');
+                update_post_meta($post_id,NF_Classification_Evidence::IMAGE_USED_META,'0');
+                update_post_meta($post_id,NF_Classification_Evidence::EVIDENCE_META,array('rule'));
+                update_post_meta($post_id,NF_Classification_Evidence::FINAL_RESULT_META,array('product_type'=>$product_type,'accepted_categories'=>$selected,'rejected_categories'=>$validation['rejected_ids'],'final_confidence'=>$confidence,'sources'=>array('rule')));
+            }
+            if (class_exists('NF_Classification_Metrics')) NF_Classification_Metrics::increment('rule_only');
+            delete_post_meta($post_id,'_nf_classification_requested_stage');
             return;
         }
-        if (class_exists('NF_AI_Category_Classifier') && NF_AI_Category_Classifier::enabled()) {
+        if ($requested_stage === 'rule') {
+            self::apply($post_id,$selected,$validation['rejected_ids']);
+            update_post_meta($post_id,self::RESULT_META,$result);
+            self::set_status($post_id,$selected?'review':'unclassified','rule',$confidence,$selected?'ルール候補を管理者が確認してください':'ルールでは分類できませんでした');
+            delete_post_meta($post_id,'_nf_classification_requested_stage');
+        } elseif (class_exists('NF_AI_Category_Classifier') && NF_AI_Category_Classifier::enabled()) {
             update_post_meta($post_id, self::RESULT_META, $result);
             self::set_status($post_id, 'ai_pending', 'rule', $confidence, 'ルールだけでは確定できないためAI判定待ち');
             NF_AI_Category_Classifier::schedule($post_id);
@@ -257,6 +288,7 @@ class NF_Category_Classifier {
             self::apply($post_id, $selected, $validation['rejected_ids']);
             update_post_meta($post_id, self::RESULT_META, $result);
             self::set_status($post_id, $selected ? 'review' : 'unclassified', 'rule', $confidence, $selected ? '候補はありますが確定根拠が不足しています' : '明確な分類根拠がありません');
+            delete_post_meta($post_id,'_nf_classification_requested_stage');
         }
     }
 
@@ -276,7 +308,9 @@ class NF_Category_Classifier {
     public static function set_status($post_id, $status, $method, $confidence, $reason) {
         update_post_meta($post_id, self::STATUS_META, sanitize_key($status));
         update_post_meta($post_id, self::METHOD_META, sanitize_key($method));
-        update_post_meta($post_id, NF_Category::CONFIDENCE_META, $status === 'manual' ? 'manual' : ($confidence >= .85 ? 'high' : ($confidence >= .6 ? 'medium' : 'low')));
+        $high=class_exists('NF_Image_Category_Classifier')?(float)get_option(NF_Image_Category_Classifier::OPT_FINAL_HIGH,.90):.85;
+        $medium=class_exists('NF_Image_Category_Classifier')?(float)get_option(NF_Image_Category_Classifier::OPT_FINAL_MEDIUM,.70):.60;
+        update_post_meta($post_id, NF_Category::CONFIDENCE_META, $status === 'manual' ? 'manual' : ($confidence >= $high ? 'high' : ($confidence >= $medium ? 'medium' : 'low')));
         if ($reason !== '') update_post_meta($post_id, NF_Category::REVIEW_REASON_META, sanitize_text_field($reason)); else delete_post_meta($post_id, NF_Category::REVIEW_REASON_META);
     }
 

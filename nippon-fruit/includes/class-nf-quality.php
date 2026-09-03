@@ -31,16 +31,25 @@ class NF_Quality {
         $locked = get_post_meta($post->ID, NF_Category::CLASSIFICATION_LOCK_META, true) === '1';
         $confidence = get_post_meta($post->ID, NF_Category::CONFIDENCE_META, true) ?: '未判定';
         $status = get_post_meta($post->ID, NF_Category_Classifier::STATUS_META, true) ?: '未判定';
-        $status_labels = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み','ai_pending'=>'AI判定待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定');
+        $status_labels = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み（旧）','text_ai_classified'=>'テキストAI判定済み','image_ai_classified'=>'画像AI判定済み','ai_pending'=>'テキストAI待ち','image_ai_pending'=>'画像AI待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定');
         $labels = array('high'=>'高い','medium'=>'要確認','low'=>'低い','manual'=>'手動確定');
+        $terms=wp_get_post_terms($post->ID,NF_Category::TAXONOMY,array('fields'=>'names')); $terms=is_wp_error($terms)?array():$terms;
+        $reason=get_post_meta($post->ID,NF_Category::REVIEW_REASON_META,true);
         ?>
         <p><strong>分類状態：</strong><?php echo esc_html(isset($status_labels[$status]) ? $status_labels[$status] : $status); ?></p>
+        <p><strong>最終カテゴリ：</strong><?php echo esc_html($terms?implode('、',$terms):'未分類'); ?></p>
         <p><strong>信頼度：</strong><?php echo esc_html(isset($labels[$confidence]) ? $labels[$confidence] : $confidence); ?></p>
+        <?php $text_conf=get_post_meta($post->ID,NF_Classification_Evidence::TEXT_CONFIDENCE_META,true); $image_conf=get_post_meta($post->ID,NF_Classification_Evidence::IMAGE_CONFIDENCE_META,true); $final_conf=get_post_meta($post->ID,NF_Classification_Evidence::FINAL_CONFIDENCE_META,true); $method=get_post_meta($post->ID,NF_Category_Classifier::METHOD_META,true); $image_used=get_post_meta($post->ID,NF_Classification_Evidence::IMAGE_USED_META,true)==='1'; ?>
+        <p><strong>判定元：</strong><?php echo esc_html($method?:'未判定'); ?></p>
+        <p><strong>テキスト信頼度：</strong><?php echo esc_html($text_conf!==''?number_format((float)$text_conf,2):'—'); ?><br><strong>画像信頼度：</strong><?php echo esc_html($image_conf!==''?number_format((float)$image_conf,2):'—'); ?><br><strong>最終信頼度：</strong><?php echo esc_html($final_conf!==''?number_format((float)$final_conf,2):'—'); ?></p>
+        <p><strong>画像AI：</strong><?php echo $image_used?'使用済み':'未使用'; ?></p>
+        <p><strong>判定理由：</strong><?php echo esc_html($reason?:'—'); ?></p>
         <label style="display:block;line-height:1.6">
           <input type="checkbox" name="nf_category_manual_lock" value="1" <?php checked($locked); ?>>
           <strong>現在のカテゴリを手動確定する</strong>
         </label>
         <p class="description">チェックすると、1時間ごとの同期や一括再分類でカテゴリが上書き・除去されません。</p>
+        <?php if(current_user_can('manage_options')): ?><hr><p><strong>この商品の再判定</strong></p><?php foreach(array('rule'=>'ルールから','text'=>'テキストAIまで','image'=>'画像AIを含める') as $stage=>$label): $url=wp_nonce_url(admin_url('admin-post.php?action=nf_reclassify_product&post_id='.$post->ID.'&stage='.$stage),'nf_reclassify_product_'.$post->ID.'_'.$stage); ?><p><a class="button" href="<?php echo esc_url($url); ?>" onclick="return confirm('この商品を<?php echo esc_js($label); ?>再判定します。よろしいですか？')"><?php echo esc_html($label); ?>再判定</a></p><?php endforeach; endif; ?>
         <?php
     }
 
@@ -69,7 +78,7 @@ class NF_Quality {
     public static function column($column, $post_id) {
         if ($column !== 'nf_quality') return;
         $value = get_post_meta($post_id, NF_Category_Classifier::STATUS_META, true);
-        $labels = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み','ai_pending'=>'AI判定待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定');
+        $labels = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み（旧）','text_ai_classified'=>'テキストAI判定済み','image_ai_classified'=>'画像AI判定済み','ai_pending'=>'テキストAI待ち','image_ai_pending'=>'画像AI待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定');
         echo esc_html(isset($labels[$value]) ? $labels[$value] : '未判定');
     }
 
@@ -119,13 +128,13 @@ class NF_Quality {
     public static function page() {
         if (!current_user_can('edit_posts')) return;
         $review = self::count_by_statuses(array('review','unclassified','ai_error'));
-        $pending = self::count_by_statuses(array('ai_pending'));
+        $pending = self::count_by_statuses(array('ai_pending','image_ai_pending'));
         $manual = self::count_by_statuses(array('manual'));
-        $high = self::count_by_statuses(array('rule_classified','conflict_resolved','ai_classified'));
+        $high = self::count_by_statuses(array('rule_classified','conflict_resolved','ai_classified','text_ai_classified','image_ai_classified'));
         $conflict_query = new WP_Query(array('post_type'=>NF_Core::POST_TYPE,'post_status'=>'any','posts_per_page'=>1,'fields'=>'ids','meta_query'=>array(array('key'=>NF_Category_Consistency::CONFLICT_META,'compare'=>'EXISTS'))));
         $conflicts = (int)$conflict_query->found_posts;
         $base = admin_url('edit.php?post_type=' . NF_Core::POST_TYPE);
-        $items = new WP_Query(array('post_type'=>NF_Core::POST_TYPE,'post_status'=>'any','posts_per_page'=>30,'orderby'=>'modified','order'=>'DESC','meta_query'=>array(array('key'=>NF_Category_Classifier::STATUS_META,'value'=>array('review','unclassified','ai_error','ai_pending'),'compare'=>'IN'))));
+        $items = new WP_Query(array('post_type'=>NF_Core::POST_TYPE,'post_status'=>'any','posts_per_page'=>30,'orderby'=>'modified','order'=>'DESC','meta_query'=>array(array('key'=>NF_Category_Classifier::STATUS_META,'value'=>array('review','unclassified','ai_error','ai_pending','image_ai_pending'),'compare'=>'IN'))));
         $conflict_items = new WP_Query(array('post_type'=>NF_Core::POST_TYPE,'post_status'=>'any','posts_per_page'=>30,'orderby'=>'modified','order'=>'DESC','meta_query'=>array(array('key'=>NF_Category_Consistency::CONFLICT_META,'compare'=>'EXISTS'))));
         ?>
         <div class="wrap nf-admin-hub">

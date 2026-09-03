@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Furusato Catalog
  * Description: ふるさと納税返礼品の管理・カテゴリ分類・楽天／Yahoo!ショッピングAPI・アフィリエイト連携に対応した汎用カタログプラグイン
- * Version: 0.13.0
+ * Version: 0.14.0
  * Author: Furusato Catalog
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'NF_VERSION', '0.13.0' );
+define( 'NF_VERSION', '0.14.0' );
 define( 'NF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -33,7 +33,10 @@ require_once NF_PLUGIN_DIR . 'includes/class-nf-content-classifier.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-category.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-category-consistency.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-category-classifier.php';
+require_once NF_PLUGIN_DIR . 'includes/class-nf-classification-metrics.php';
+require_once NF_PLUGIN_DIR . 'includes/class-nf-classification-evidence.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-ai-category-classifier.php';
+require_once NF_PLUGIN_DIR . 'includes/class-nf-image-category-classifier.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-classification-admin.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-admin-hub.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-quality.php';

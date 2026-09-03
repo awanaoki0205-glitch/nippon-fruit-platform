@@ -757,7 +757,7 @@ class NF_Category {
     public static function update_ai_progress() {
         $progress = self::get_reclassification_progress();
         if (!$progress || !in_array(($progress['state'] ?? ''), array('running','queued'), true)) return;
-        $pending = NF_Classification_Admin::count_status('ai_pending');
+        $pending = NF_Classification_Admin::count_status('ai_pending') + NF_Classification_Admin::count_status('image_ai_pending');
         if (($progress['phase'] ?? '') !== 'ai') {
             $progress['phase'] = 'ai';
             $progress['ai_total'] = $pending;
@@ -804,7 +804,7 @@ class NF_Category {
             update_option(self::RECLASSIFY_OPTION, self::RECLASSIFY_VERSION, false);
             self::$mark_reclassification_version = false;
             $progress['processed'] = (int)($progress['total'] ?? ($offset + $processed));
-            $pending = class_exists('NF_Classification_Admin') ? NF_Classification_Admin::count_status('ai_pending') : 0;
+            $pending = class_exists('NF_Classification_Admin') ? NF_Classification_Admin::count_status('ai_pending') + NF_Classification_Admin::count_status('image_ai_pending') : 0;
             $progress['phase'] = $pending > 0 ? 'ai' : 'done';
             $progress['ai_total'] = $pending;
             $progress['ai_processed'] = 0;

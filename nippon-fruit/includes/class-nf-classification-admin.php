@@ -13,6 +13,7 @@ class NF_Classification_Admin {
         add_action('edited_' . NF_Category::TAXONOMY, array(__CLASS__, 'save_term_fields'), 20);
         add_action('admin_post_nf_classification_requeue', array(__CLASS__, 'requeue'));
         add_action('wp_ajax_nf_classification_progress', array(__CLASS__, 'ajax_progress'));
+        add_action('admin_post_nf_reclassify_product', array(__CLASS__, 'reclassify_product'));
     }
 
     public static function menu() {
@@ -26,6 +27,11 @@ class NF_Classification_Admin {
         register_setting('nf_classification_settings', NF_AI_Category_Classifier::OPT_HIGH, array('sanitize_callback'=>array(__CLASS__,'confidence'),'default'=>.85));
         register_setting('nf_classification_settings', NF_AI_Category_Classifier::OPT_MEDIUM, array('sanitize_callback'=>array(__CLASS__,'confidence'),'default'=>.60));
         register_setting('nf_classification_settings', NF_AI_Category_Classifier::OPT_BATCH, array('sanitize_callback'=>array(__CLASS__,'batch'),'default'=>3));
+        register_setting('nf_classification_settings', NF_Image_Category_Classifier::OPT_ENABLED, array('sanitize_callback'=>array(__CLASS__,'checkbox'),'default'=>'0'));
+        register_setting('nf_classification_settings', NF_Image_Category_Classifier::OPT_MODEL, array('sanitize_callback'=>'sanitize_text_field','default'=>'gpt-5.4-nano'));
+        register_setting('nf_classification_settings', NF_Image_Category_Classifier::OPT_TRIGGER, array('sanitize_callback'=>array(__CLASS__,'confidence'),'default'=>.75));
+        register_setting('nf_classification_settings', NF_Image_Category_Classifier::OPT_FINAL_HIGH, array('sanitize_callback'=>array(__CLASS__,'confidence'),'default'=>.90));
+        register_setting('nf_classification_settings', NF_Image_Category_Classifier::OPT_FINAL_MEDIUM, array('sanitize_callback'=>array(__CLASS__,'confidence'),'default'=>.70));
     }
     public static function checkbox($v) { return empty($v) ? '0' : '1'; }
     public static function confidence($v) { return max(0, min(1, (float)$v)); }
@@ -79,6 +85,19 @@ class NF_Classification_Admin {
         return (int)$q->found_posts;
     }
 
+    public static function reclassify_product() {
+        if (!current_user_can('manage_options')) wp_die('権限がありません。');
+        $post_id=isset($_GET['post_id'])?absint($_GET['post_id']):0; $stage=isset($_GET['stage'])?sanitize_key($_GET['stage']):'rule';
+        if (!$post_id || get_post_type($post_id)!==NF_Core::POST_TYPE || !in_array($stage,array('rule','text','image'),true)) wp_die('対象が正しくありません。');
+        check_admin_referer('nf_reclassify_product_'.$post_id.'_'.$stage);
+        delete_post_meta($post_id,NF_Category_Classifier::INPUT_HASH_META);
+        delete_post_meta($post_id,NF_Category_Classifier::AI_HASH_META);
+        delete_post_meta($post_id,NF_Image_Category_Classifier::HASH_META);
+        update_post_meta($post_id,'_nf_classification_requested_stage',$stage);
+        NF_Category_Classifier::classify_now($post_id,true);
+        wp_safe_redirect(add_query_arg('nf_reclassified',$stage,get_edit_post_link($post_id,'raw'))); exit;
+    }
+
     public static function requeue() {
         if (!current_user_can('manage_options')) wp_die('権限がありません。');
         check_admin_referer('nf_classification_requeue');
@@ -108,7 +127,7 @@ class NF_Classification_Admin {
             'phase'=>$phase, 'phase_label'=>$phase_labels[$phase] ?? '',
             'total'=>$total, 'processed'=>$processed, 'remaining'=>max(0,$total-$processed),
             'ai_total'=>$ai_total, 'ai_processed'=>$ai_processed,
-            'pending'=>self::count_status('ai_pending'), 'percent'=>$percent,
+            'pending'=>self::count_status('ai_pending')+self::count_status('image_ai_pending'), 'percent'=>$percent,
             'updated_at'=>!empty($progress['updated_at']) ? wp_date('Y/m/d H:i:s',(int)$progress['updated_at']) : '',
         );
     }
@@ -132,7 +151,7 @@ class NF_Classification_Admin {
 
     public static function page() {
         if (!current_user_can('manage_options')) return;
-        $statuses = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み','ai_pending'=>'AI判定待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定'); ?>
+        $statuses = array('rule_classified'=>'ルール判定済み','conflict_resolved'=>'カテゴリ矛盾補正済み','ai_classified'=>'AI判定済み（旧）','text_ai_classified'=>'テキストAI判定済み','image_ai_classified'=>'画像AI判定済み','ai_pending'=>'テキストAI待ち','image_ai_pending'=>'画像AI待ち','review'=>'要確認','unclassified'=>'未分類','ai_error'=>'AIエラー','manual'=>'手動確定'); ?>
         <div class="wrap"><h1>カテゴリ自動分類設定</h1>
         <?php if (!empty($_GET['requeued'])): ?><div class="notice notice-success"><p>全返礼品の再分類を予約しました。</p></div><?php endif; ?>
         <p>商品名を最優先するルール判定を行い、曖昧・矛盾する商品のみAIへ送ります。API障害が起きても商品登録は継続します。</p>
@@ -142,9 +161,14 @@ class NF_Classification_Admin {
           <table class="form-table"><tr><th>AI補完</th><td><label><input type="checkbox" name="<?php echo NF_AI_Category_Classifier::OPT_ENABLED; ?>" value="1" <?php checked(get_option(NF_AI_Category_Classifier::OPT_ENABLED,'0'),'1'); ?>> 曖昧な商品だけAIで判定する</label></td></tr>
           <tr><th>OpenAI APIキー</th><td><input class="regular-text" type="password" autocomplete="new-password" name="<?php echo NF_AI_Category_Classifier::OPT_API_KEY; ?>" value="<?php echo esc_attr(get_option(NF_AI_Category_Classifier::OPT_API_KEY,'')); ?>"><p class="description">WordPress内に保存され、画面には公開されません。</p></td></tr>
           <tr><th>モデル</th><td><input class="regular-text" name="<?php echo NF_AI_Category_Classifier::OPT_MODEL; ?>" value="<?php echo esc_attr(get_option(NF_AI_Category_Classifier::OPT_MODEL,'gpt-5-mini')); ?>"></td></tr>
-          <tr><th>自動反映の信頼度</th><td><input type="number" min="0" max="1" step="0.01" name="<?php echo NF_AI_Category_Classifier::OPT_HIGH; ?>" value="<?php echo esc_attr(get_option(NF_AI_Category_Classifier::OPT_HIGH,.85)); ?>"></td></tr>
-          <tr><th>要確認の下限</th><td><input type="number" min="0" max="1" step="0.01" name="<?php echo NF_AI_Category_Classifier::OPT_MEDIUM; ?>" value="<?php echo esc_attr(get_option(NF_AI_Category_Classifier::OPT_MEDIUM,.60)); ?>"></td></tr>
+          <tr><th>画像AI補完</th><td><label><input type="checkbox" name="<?php echo NF_Image_Category_Classifier::OPT_ENABLED; ?>" value="1" <?php checked(get_option(NF_Image_Category_Classifier::OPT_ENABLED,'0'),'1'); ?>> テキストで判別困難な商品だけ代表画像を確認する</label></td></tr>
+          <tr><th>画像AIモデル</th><td><input class="regular-text" name="<?php echo NF_Image_Category_Classifier::OPT_MODEL; ?>" value="<?php echo esc_attr(get_option(NF_Image_Category_Classifier::OPT_MODEL,'gpt-5.4-nano')); ?>"><p class="description">画像入力と構造化出力に対応するモデルを指定してください。</p></td></tr>
+          <tr><th>画像AIへ進む閾値</th><td><input type="number" min="0" max="1" step="0.01" name="<?php echo NF_Image_Category_Classifier::OPT_TRIGGER; ?>" value="<?php echo esc_attr(get_option(NF_Image_Category_Classifier::OPT_TRIGGER,.75)); ?>"><p class="description">テキスト信頼度がこの値未満の場合、画像があれば補助判定します。</p></td></tr>
+          <tr><th>最終自動反映の信頼度</th><td><input type="number" min="0" max="1" step="0.01" name="<?php echo NF_Image_Category_Classifier::OPT_FINAL_HIGH; ?>" value="<?php echo esc_attr(get_option(NF_Image_Category_Classifier::OPT_FINAL_HIGH,.90)); ?>"></td></tr>
+          <tr><th>最終要確認の下限</th><td><input type="number" min="0" max="1" step="0.01" name="<?php echo NF_Image_Category_Classifier::OPT_FINAL_MEDIUM; ?>" value="<?php echo esc_attr(get_option(NF_Image_Category_Classifier::OPT_FINAL_MEDIUM,.70)); ?>"></td></tr>
+          <tr><th>ルール自動確定の信頼度</th><td><input type="number" min="0" max="1" step="0.01" name="<?php echo NF_AI_Category_Classifier::OPT_HIGH; ?>" value="<?php echo esc_attr(get_option(NF_AI_Category_Classifier::OPT_HIGH,.85)); ?>"></td></tr>
           <tr><th>1回の処理件数</th><td><input type="number" min="1" max="20" name="<?php echo NF_AI_Category_Classifier::OPT_BATCH; ?>" value="<?php echo esc_attr(get_option(NF_AI_Category_Classifier::OPT_BATCH,3)); ?>"></td></tr></table><?php submit_button('設定を保存'); ?></form>
+        <?php $metrics=NF_Classification_Metrics::snapshot(); ?><hr><h2>API利用集計（累計）</h2><div class="nf-status-grid"><div class="nf-status-card"><span>ルールのみ</span><strong><?php echo intval($metrics['rule_only']); ?>件</strong></div><div class="nf-status-card"><span>テキストAI呼出</span><strong><?php echo intval($metrics['text_ai_calls']); ?>件</strong></div><div class="nf-status-card"><span>画像AI呼出</span><strong><?php echo intval($metrics['image_ai_calls']); ?>件</strong></div><div class="nf-status-card is-warning"><span>要確認</span><strong><?php echo intval($metrics['review']); ?>件</strong></div><div class="nf-status-card is-warning"><span>APIエラー</span><strong><?php echo intval($metrics['api_errors']); ?>件</strong></div></div>
         <hr><h2>再分類</h2><p>カテゴリ・別名・除外語を変更した場合、既存の全返礼品を新しいルールで再分類できます。</p><a class="button button-secondary" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=nf_classification_requeue'),'nf_classification_requeue')); ?>">全返礼品を再分類</a>
         </div><?php
     }
