@@ -7,6 +7,10 @@ class NF_Core {
 
     public static function init() {
         add_action( 'init', array( __CLASS__, 'register_content' ) );
+        add_action( 'init', array( __CLASS__, 'maybe_split_prefecture_office_terms' ), 30 );
+        add_action( 'created_nf_municipality', array( __CLASS__, 'invalidate_prefecture_office_migration' ) );
+        add_action( 'edited_nf_municipality', array( __CLASS__, 'invalidate_prefecture_office_migration' ) );
+        add_action( 'set_object_terms', array( __CLASS__, 'maybe_invalidate_prefecture_office_migration' ), 10, 6 );
         add_action( 'add_meta_boxes', array( __CLASS__, 'add_meta_boxes' ) );
         add_action( 'save_post_' . self::POST_TYPE, array( __CLASS__, 'save_meta' ) );
         add_filter( 'the_content', array( __CLASS__, 'append_product_box' ) );
@@ -16,7 +20,105 @@ class NF_Core {
 
     public static function activate() {
         self::register_content();
+        self::maybe_split_prefecture_office_terms();
         flush_rewrite_rules();
+    }
+
+    /**
+     * Separate a prefectural-government donation destination from its grouping
+     * term. The rule applies equally to every 都/道/府/県 and is safe for sites
+     * serving one or several prefectures.
+     */
+    public static function maybe_split_prefecture_office_terms() {
+        $migration_version = '1';
+        if ( get_option('nf_prefecture_office_migration_version', '') === $migration_version ) return;
+        if ( ! taxonomy_exists('nf_municipality') || ! post_type_exists(self::POST_TYPE) ) return;
+
+        $roots = get_terms(array(
+            'taxonomy' => 'nf_municipality',
+            'hide_empty' => false,
+            'parent' => 0,
+        ));
+        if ( is_wp_error($roots) ) return;
+
+        $summary = array('groups' => 0, 'destinations' => 0, 'products' => 0);
+        foreach ( $roots as $root ) {
+            if ( ! preg_match('/(都|道|府|県)$/u', (string)$root->name, $suffix) ) continue;
+
+            $children = get_terms(array(
+                'taxonomy' => 'nf_municipality',
+                'hide_empty' => false,
+                'parent' => (int)$root->term_id,
+                'number' => 1,
+            ));
+            if ( is_wp_error($children) || ! $children ) continue;
+
+            $office_labels = array('都' => '都庁', '道' => '道庁', '府' => '府庁', '県' => '県庁');
+            $child_name = $root->name . '（' . $office_labels[$suffix[1]] . '）';
+            $existing = get_terms(array(
+                'taxonomy' => 'nf_municipality',
+                'hide_empty' => false,
+                'parent' => (int)$root->term_id,
+                'name' => $child_name,
+                'number' => 1,
+            ));
+            if ( ! is_wp_error($existing) && $existing ) {
+                $office = reset($existing);
+            } else {
+                $inserted = wp_insert_term($child_name, 'nf_municipality', array(
+                    'parent' => (int)$root->term_id,
+                    'slug' => sanitize_title($root->slug . '-government-office'),
+                ));
+                if ( is_wp_error($inserted) ) continue;
+                $office = get_term((int)$inserted['term_id'], 'nf_municipality');
+                if ( ! $office || is_wp_error($office) ) continue;
+                $summary['destinations']++;
+            }
+
+            $direct_ids = get_objects_in_term((int)$root->term_id, 'nf_municipality');
+            if ( is_wp_error($direct_ids) || ! $direct_ids ) {
+                $summary['groups']++;
+                continue;
+            }
+
+            foreach ( array_map('absint', $direct_ids) as $post_id ) {
+                if ( get_post_type($post_id) !== self::POST_TYPE ) continue;
+                $assigned = wp_get_object_terms($post_id, 'nf_municipality', array('fields' => 'ids'));
+                if ( is_wp_error($assigned) ) continue;
+
+                // Do not reinterpret a product already assigned to a city or
+                // another actual destination under this prefecture.
+                $has_child_destination = false;
+                foreach ( $assigned as $assigned_id ) {
+                    $assigned_id = (int)$assigned_id;
+                    if ( $assigned_id === (int)$root->term_id ) continue;
+                    $ancestors = get_ancestors($assigned_id, 'nf_municipality', 'taxonomy');
+                    if ( in_array((int)$root->term_id, array_map('intval', $ancestors), true) ) {
+                        $has_child_destination = true;
+                        break;
+                    }
+                }
+                if ( $has_child_destination ) continue;
+
+                $set = wp_set_object_terms($post_id, array((int)$office->term_id), 'nf_municipality', true);
+                if ( is_wp_error($set) ) continue;
+                $removed = wp_remove_object_terms($post_id, array((int)$root->term_id), 'nf_municipality');
+                if ( ! is_wp_error($removed) ) $summary['products']++;
+            }
+            $summary['groups']++;
+        }
+
+        update_option('nf_prefecture_office_migration_summary', $summary, false);
+        update_option('nf_prefecture_office_migration_version', $migration_version, false);
+    }
+
+    public static function invalidate_prefecture_office_migration() {
+        delete_option('nf_prefecture_office_migration_version');
+    }
+
+    public static function maybe_invalidate_prefecture_office_migration($object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids) {
+        unset($object_id, $terms, $tt_ids, $append, $old_tt_ids);
+        if ( $taxonomy === 'nf_municipality' ) self::invalidate_prefecture_office_migration();
     }
 
     public static function register_content() {

@@ -100,19 +100,20 @@ class NF_Category {
           </form>
           <hr style="margin:32px 0;max-width:720px">
           <h2>自治体から探す</h2>
+          <p>都道府県を親、その配下の県庁等と市区町村を寄付先として管理します。公開時に親見出しを使うかどうかは「かんたん設定」で顧客ごとに選択できます。</p>
           <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="nf-order-form">
             <input type="hidden" name="action" value="nf_save_category_order">
             <input type="hidden" name="order_kind" value="municipality">
             <?php wp_nonce_field('nf_save_category_order', 'nf_category_order_nonce'); ?>
             <input type="hidden" name="term_order" class="nf-order-value" value="">
             <div class="nf-category-order-tree">
-              <?php self::render_order_items(0, $municipality_by_parent); ?>
+              <?php self::render_order_items(0, $municipality_by_parent, 'municipality'); ?>
             </div>
             <?php submit_button('自治体の並び順を保存'); ?>
           </form>
         </div>
         <style>
-          .nf-category-order-tree{max-width:720px;margin-top:20px}.nf-category-order-list{margin:0;padding:0;list-style:none}.nf-category-order-list .nf-category-order-list{margin:7px 0 7px 34px}.nf-category-order-item{margin:7px 0}.nf-category-order-row{display:flex;align-items:center;gap:12px;min-height:46px;padding:0 15px;border:1px solid #dcdcde;border-radius:7px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}.nf-category-order-handle{color:#777;cursor:grab;font-size:20px}.nf-category-order-count{margin-left:auto;color:#777}.nf-category-order-placeholder{height:46px;border:2px dashed #72aee6;border-radius:7px;background:#f0f6fc}
+          .nf-category-order-tree{max-width:720px;margin-top:20px}.nf-category-order-list{margin:0;padding:0;list-style:none}.nf-category-order-list .nf-category-order-list{margin:7px 0 7px 34px}.nf-category-order-item{margin:7px 0}.nf-category-order-row{display:flex;align-items:center;gap:12px;min-height:46px;padding:0 15px;border:1px solid #dcdcde;border-radius:7px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}.nf-category-order-list>.nf-category-order-item>.nf-category-order-row{border-color:#b8d9c2;background:#f4fbf6}.nf-category-order-handle{color:#777;cursor:grab;font-size:20px}.nf-category-order-kind{padding:3px 8px;border-radius:999px;background:#eef1f3;color:#52606d;font-size:11px;font-weight:700}.nf-category-order-kind.is-prefecture{background:#dff2e4;color:#176b35}.nf-category-order-count{margin-left:auto;color:#777}.nf-category-order-placeholder{height:46px;border:2px dashed #72aee6;border-radius:7px;background:#f0f6fc}
         </style>
         <script>
         jQuery(function($){
@@ -130,13 +131,19 @@ class NF_Category {
         <?php
     }
 
-    private static function render_order_items($parent, $by_parent) {
+    private static function render_order_items($parent, $by_parent, $kind = 'category') {
         if ( empty($by_parent[$parent]) ) return;
         echo '<ul class="nf-category-order-list">';
         foreach ($by_parent[$parent] as $term) {
             echo '<li class="nf-category-order-item" data-term-id="' . esc_attr($term->term_id) . '">';
-            echo '<div class="nf-category-order-row"><span class="nf-category-order-handle" aria-hidden="true">☰</span><strong>' . esc_html($term->name) . '</strong><span class="nf-category-order-count">' . intval($term->count) . '件</span></div>';
-            self::render_order_items((int)$term->term_id, $by_parent);
+            $badge = '';
+            if ( $kind === 'municipality' ) {
+                $badge = (int)$parent === 0
+                    ? '<span class="nf-category-order-kind is-prefecture">都道府県</span>'
+                    : '<span class="nf-category-order-kind">寄付先</span>';
+            }
+            echo '<div class="nf-category-order-row"><span class="nf-category-order-handle" aria-hidden="true">☰</span><strong>' . esc_html($term->name) . '</strong>' . $badge . '<span class="nf-category-order-count">' . intval($term->count) . '件</span></div>';
+            self::render_order_items((int)$term->term_id, $by_parent, $kind);
             echo '</li>';
         }
         echo '</ul>';

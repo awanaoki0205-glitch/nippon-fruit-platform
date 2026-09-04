@@ -31,7 +31,7 @@ class NF_Classification_Metrics {
         $days=max(1,min(90,absint($days))); $offset=max(0,absint($offset));
         $data=get_option(self::OPTION,array()); $totals=array_fill_keys(self::KEYS,0);
         for($i=$offset;$i<$offset+$days;$i++) {
-            $day=wp_date('Y-m-d',current_time('timestamp')-DAY_IN_SECONDS*$i);
+            $day=wp_date('Y-m-d',time()-DAY_IN_SECONDS*$i);
             foreach($totals as $key=>$value) $totals[$key]+=(int)($data['daily'][$day][$key]??0);
         }
         return $totals;

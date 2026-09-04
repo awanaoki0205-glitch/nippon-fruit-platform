@@ -26,6 +26,7 @@ class NF_Settings {
     const OPT_CATEGORY_NAV_CUSTOM      = 'nf_ui_category_nav_custom';
     const OPT_CATEGORY_ALLOWED_TOP     = 'nf_ui_category_allowed_top';
     const OPT_MUNICIPALITY_LINK_MODE   = 'nf_ui_municipality_link_mode';
+    const OPT_MUNICIPALITY_NAV_MODE    = 'nf_ui_municipality_nav_mode';
     const OPT_CATEGORY_LINK_MODE       = 'nf_ui_category_link_mode';
     const OPT_SIDEBAR_CUSTOM_ENABLED   = 'nf_ui_sidebar_custom_enabled';
     const OPT_SIDEBAR_CUSTOM_HTML      = 'nf_ui_sidebar_custom_html';
@@ -141,6 +142,9 @@ class NF_Settings {
         ));
         register_setting('nf_ui_settings', self::OPT_MUNICIPALITY_LINK_MODE, array(
             'type'=>'string','sanitize_callback'=>array(__CLASS__,'sanitize_link_mode'),'default'=>'manual'
+        ));
+        register_setting('nf_ui_settings', self::OPT_MUNICIPALITY_NAV_MODE, array(
+            'type'=>'string','sanitize_callback'=>array(__CLASS__,'sanitize_municipality_nav_mode'),'default'=>'grouped'
         ));
         register_setting('nf_ui_settings', self::OPT_CATEGORY_LINK_MODE, array(
             'type'=>'string','sanitize_callback'=>array(__CLASS__,'sanitize_link_mode'),'default'=>'manual'
@@ -345,6 +349,11 @@ class NF_Settings {
     public static function sanitize_link_mode($value) {
         $value = sanitize_key($value);
         return $value === 'assist' ? 'assist' : 'manual';
+    }
+
+    public static function sanitize_municipality_nav_mode($value) {
+        $value = sanitize_key($value);
+        return in_array($value, array('grouped','flat'), true) ? $value : 'grouped';
     }
 
     public static function sanitize_promo_position($v) {
@@ -638,6 +647,12 @@ class NF_Settings {
     public static function municipality_link_mode() {
         return self::sanitize_link_mode(
             get_option(self::OPT_MUNICIPALITY_LINK_MODE, 'manual')
+        );
+    }
+
+    public static function municipality_nav_mode() {
+        return self::sanitize_municipality_nav_mode(
+            get_option(self::OPT_MUNICIPALITY_NAV_MODE, 'grouped')
         );
     }
 
@@ -974,6 +989,11 @@ class NF_Settings {
                   <option value="compact" <?php selected($layout,'compact'); ?>>コンパクト</option>
                   <option value="wide" <?php selected($layout,'wide'); ?>>ワイド</option>
                 </select>
+                <hr style="margin:20px 0">
+                <h3>自治体の表示方法</h3>
+                <p>事業対象の都道府県数に合わせて選択できます。</p>
+                <p><label><input type="radio" name="<?php echo esc_attr(self::OPT_MUNICIPALITY_NAV_MODE); ?>" value="flat" <?php checked(self::municipality_nav_mode(),'flat'); ?>> <strong>自治体を直接並べる</strong><br><small>主に1つの都道府県で運用する場合に適しています。</small></label></p>
+                <p><label><input type="radio" name="<?php echo esc_attr(self::OPT_MUNICIPALITY_NAV_MODE); ?>" value="grouped" <?php checked(self::municipality_nav_mode(),'grouped'); ?>> <strong>都道府県ごとにまとめる</strong><br><small>複数県で運用する場合に、都道府県を親見出しとして表示します。</small></label></p>
               </section>
 
               <section class="nf-ui-card">

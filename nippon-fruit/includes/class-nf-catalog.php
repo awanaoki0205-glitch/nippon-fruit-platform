@@ -196,7 +196,26 @@ class NF_Catalog {
             return $rows;
         };
 
-        return $build(0);
+        $tree = $build(0);
+        $mode = class_exists('NF_Settings') ? NF_Settings::municipality_nav_mode() : 'grouped';
+        if ( $mode !== 'flat' ) return $tree;
+
+        // Single-prefecture operators can present donation destinations in one
+        // simple list. Grouping nodes are omitted, while their leaf destinations
+        // retain the same slugs and filtering behavior.
+        $flatten = function($nodes) use (&$flatten) {
+            $rows = array();
+            foreach ( $nodes as $node ) {
+                if ( ! empty($node['children']) ) {
+                    $rows = array_merge($rows, $flatten($node['children']));
+                    continue;
+                }
+                $node['children'] = array();
+                $rows[] = $node;
+            }
+            return $rows;
+        };
+        return $flatten($tree);
     }
 
     public static function render_archive() {
