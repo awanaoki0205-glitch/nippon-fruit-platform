@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Furusato Catalog
  * Description: ふるさと納税返礼品の管理・カテゴリ分類・楽天／Yahoo!ショッピングAPI・アフィリエイト連携に対応した汎用カタログプラグイン
- * Version: 0.16.1
+ * Version: 0.16.2
  * Author: NipponFruit
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'NF_VERSION', '0.16.1' );
+define( 'NF_VERSION', '0.16.2' );
 define( 'NF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 

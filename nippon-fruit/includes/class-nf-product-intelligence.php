@@ -31,14 +31,22 @@ class NF_Product_Intelligence {
     }
     private static function text_value($value) {
         if (is_scalar($value) || $value===null) return trim((string)$value);
-        $flat=array(); array_walk_recursive((array)$value,function($item) use (&$flat){ if(is_scalar($item)&&trim((string)$item)!=='') $flat[]=trim((string)$item); });
+        $flat=array(); self::flatten_scalars($value,$flat);
         return implode(' / ',array_values(array_unique($flat)));
     }
+    private static function flatten_scalars($value,&$flat) {
+        if (is_array($value)) {
+            foreach ($value as $item) self::flatten_scalars($item,$flat);
+            return;
+        }
+        if (is_scalar($value) && trim((string)$value)!=='') $flat[]=trim((string)$value);
+    }
     private static function evidence_sources($final,$stored) {
-        $flat=array();
-        array_walk_recursive(array($final['sources']??array(),$stored),function($item) use (&$flat){
-            $item=sanitize_key((string)$item); if(in_array($item,array('rule','text_ai','image_ai','manual'),true)) $flat[]=$item;
-        });
+        $values=array(); $sources=array($final['sources']??array(),$stored);
+        self::flatten_scalars($sources,$values);
+        $flat=array(); foreach($values as $item) {
+            $item=sanitize_key($item); if(in_array($item,array('rule','text_ai','image_ai','manual'),true)) $flat[]=$item;
+        }
         return array_values(array_unique($flat));
     }
     public static function row($id) {
@@ -48,9 +56,9 @@ class NF_Product_Intelligence {
         $kg=self::normalize_weight_kg($capacity.' '.$title); $count=self::normalize_count($quantity.' '.$title); $price=self::price($id);
         $categories=self::term_names($id,NF_Category::TAXONOMY); $municipalities=self::term_names($id,'nf_municipality');
         $sources=self::evidence_sources($final,get_post_meta($id,NF_Classification_Evidence::EVIDENCE_META,true));
-        return array('id'=>$id,'title'=>$title,'municipality'=>implode(' / ',$municipalities),'categories'=>$categories,
-            'item'=>!empty($attrs['items'])?implode(' / ',$attrs['items']):($categories?end($categories):''),'variety'=>!empty($attrs['varieties'])?implode(' / ',$attrs['varieties']):'',
-            'capacity'=>$capacity,'kg'=>$kg,'count'=>$count,'quality'=>self::quality($title),'type'=>$attrs['product_type']??'single','price'=>$price,
+        return array('id'=>$id,'title'=>$title,'municipality'=>self::text_value($municipalities),'categories'=>$categories,
+            'item'=>!empty($attrs['items'])?self::text_value($attrs['items']):($categories?end($categories):''),'variety'=>!empty($attrs['varieties'])?self::text_value($attrs['varieties']):'',
+            'capacity'=>$capacity,'kg'=>$kg,'count'=>$count,'quality'=>self::quality($title),'type'=>self::text_value($attrs['product_type']??'single'),'price'=>$price,
             'per_kg'=>$kg>0&&$price>0?(int)round($price/$kg):0,'per_item'=>$count>0&&$price>0?(int)round($price/$count):0,
             'shipping'=>self::text_value(get_post_meta($id,'_nf_shipping',true)),'sources'=>$sources,'confidence'=>(float)get_post_meta($id,NF_Classification_Evidence::FINAL_CONFIDENCE_META,true));
     }

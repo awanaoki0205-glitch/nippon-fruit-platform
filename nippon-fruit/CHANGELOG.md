@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.2
+
+- Product Intelligenceの入れ子配列を安全に展開し、PHPの参照渡しによる致命的エラーを修正。
+
 ## 0.16.1
 
 - Product Intelligenceで配列形式の分類証拠・重量・数量・発送情報を安全に正規化し、Array to string conversion警告を修正。

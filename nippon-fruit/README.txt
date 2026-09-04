@@ -1,6 +1,6 @@
-Version 0.16.1
+Version 0.16.2
 
-0.16.1
+0.16.2
 - Product Intelligenceの分類証拠・規格メタが配列の場合の表示警告を修正。
 
 0.16.0
