@@ -129,6 +129,8 @@ class NF_Catalog {
                     'municipalityTree' => self::municipality_tree_for_public(),
                     'categoryLabel' => 'カテゴリ',
                     'categoryNavMode' => class_exists('NF_Settings') ? NF_Settings::category_nav_mode() : 'auto',
+                    'multiMunicipality' => !class_exists('NF_Commercial_Config') || NF_Commercial_Config::feature('multi_municipality_filter'),
+                    'multiCategory' => !class_exists('NF_Commercial_Config') || NF_Commercial_Config::feature('multi_category_filter'),
                 )
             );
         }
@@ -286,7 +288,7 @@ class NF_Catalog {
                 </button>
                 <fieldset id="nf_catalog_category_filter_card" class="nf-catalog-category-filter-card">
                   <legend>お礼品カテゴリ</legend>
-                  <p class="nf-category-tree-help">矢印で分類を開き、絞り込みたいカテゴリを1つ選択してください。</p>
+                  <p class="nf-category-tree-help">矢印で分類を開き、絞り込みたいカテゴリを複数選択できます。</p>
                   <div id="nf_catalog_category_tree" class="nf-catalog-category-tree" aria-label="お礼品カテゴリ"></div>
                   <p id="nf_catalog_category_tree_summary" class="nf-category-tree-summary" hidden></p>
 
@@ -315,7 +317,7 @@ class NF_Catalog {
                 </button>
                 <fieldset id="nf_catalog_municipality_filter_card" class="nf-catalog-category-filter-card nf-catalog-municipality-filter-card">
                   <legend>自治体から探す</legend>
-                  <p class="nf-category-tree-help">矢印で地域を開き、絞り込みたい自治体を1つ選択してください。</p>
+                  <p class="nf-category-tree-help">矢印で地域を開き、絞り込みたい自治体を複数選択できます。</p>
                   <div id="nf_catalog_municipality_tree" class="nf-catalog-category-tree nf-catalog-municipality-tree" aria-label="自治体から探す"></div>
                   <p id="nf_catalog_municipality_tree_summary" class="nf-category-tree-summary" hidden></p>
                 </fieldset>
@@ -600,10 +602,12 @@ class NF_Catalog {
         $args = array(
             'keyword' => isset($_POST['keyword']) ? sanitize_text_field(wp_unslash($_POST['keyword'])) : '',
             'municipality' => isset($_POST['municipality']) ? sanitize_title(wp_unslash($_POST['municipality'])) : '',
+            'municipalities' => self::sanitize_slug_list($_POST['municipalities'] ?? array()),
             'fruit' => isset($_POST['fruit']) ? sanitize_title(wp_unslash($_POST['fruit'])) : '',
             'category' => isset($_POST['category']) ? sanitize_title(wp_unslash($_POST['category'])) : '',
             'subcategory' => isset($_POST['subcategory']) ? sanitize_title(wp_unslash($_POST['subcategory'])) : '',
             'type' => isset($_POST['type']) ? sanitize_title(wp_unslash($_POST['type'])) : '',
+            'categories' => self::sanitize_slug_list($_POST['categories'] ?? array()),
             'status' => isset($_POST['status']) ? sanitize_text_field(wp_unslash($_POST['status'])) : '',
             'price_range' => isset($_POST['price_range']) ? sanitize_text_field(wp_unslash($_POST['price_range'])) : '',
             'price_min' => isset($_POST['price_min']) ? absint($_POST['price_min']) : 0,
@@ -627,6 +631,10 @@ class NF_Catalog {
 
         $result = self::query_products($args);
 
+        if (!empty($_POST['count_only'])) {
+            wp_send_json_success(array('found'=>intval($result['display_found'])));
+        }
+
         wp_send_json_success(array(
             'html' => self::render_product_grid($result['query']),
             'pagination' => self::render_pagination($result['query']),
@@ -634,6 +642,32 @@ class NF_Catalog {
             'listTitle' => self::result_title($args),
             'rangeText' => self::range_text($result['query']),
         ));
+    }
+
+    public static function sanitize_slug_list($value) {
+        if (is_string($value)) $value = explode(',', wp_unslash($value));
+        $out=array();
+        foreach ((array)$value as $slug) {
+            $slug=sanitize_title($slug);
+            if ($slug!=='' && !in_array($slug,$out,true)) $out[]=$slug;
+            if (count($out)>=50) break;
+        }
+        return $out;
+    }
+
+    private static function normalize_taxonomy_slugs($taxonomy,$slugs) {
+        $slugs=self::sanitize_slug_list($slugs);
+        if (!$slugs || !taxonomy_exists($taxonomy)) return $slugs;
+        $selected=array_fill_keys($slugs,true); $normalized=array();
+        foreach ($slugs as $slug) {
+            $term=get_term_by('slug',$slug,$taxonomy); $redundant=false;
+            if ($term && !is_wp_error($term)) foreach ((array)get_ancestors($term->term_id,$taxonomy,'taxonomy') as $ancestor_id) {
+                $ancestor=get_term($ancestor_id,$taxonomy);
+                if ($ancestor && !is_wp_error($ancestor) && isset($selected[$ancestor->slug])) {$redundant=true; break;}
+            }
+            if (!$redundant) $normalized[]=$slug;
+        }
+        return $normalized;
     }
 
     private static function portal_available( $post_id ) {
@@ -1131,10 +1165,12 @@ class NF_Catalog {
         $args = wp_parse_args($args, array(
             'keyword' => '',
             'municipality' => '',
+            'municipalities' => array(),
             'fruit' => '',
             'category' => '',
             'subcategory' => '',
             'type' => '',
+            'categories' => array(),
             'status' => '',
             'price_range' => '',
             'price_min' => 0,
@@ -1150,11 +1186,15 @@ class NF_Catalog {
 
         $tax_query = array();
 
-        if ( $args['municipality'] ) {
+        $municipalities=self::normalize_taxonomy_slugs('nf_municipality',$args['municipalities']);
+        if (!$municipalities && $args['municipality']) $municipalities=array($args['municipality']);
+        if ( $municipalities ) {
             $tax_query[] = array(
                 'taxonomy' => 'nf_municipality',
                 'field' => 'slug',
-                'terms' => $args['municipality'],
+                'terms' => $municipalities,
+                'operator' => 'IN',
+                'include_children' => true,
             );
         }
 
@@ -1166,12 +1206,15 @@ class NF_Catalog {
             );
         }
 
+        $category_slugs=self::normalize_taxonomy_slugs('nf_category',$args['categories']);
         $category_slug = $args['type'] ?: ($args['subcategory'] ?: $args['category']);
-        if ( $category_slug && taxonomy_exists('nf_category') ) {
+        if (!$category_slugs && $category_slug) $category_slugs=array($category_slug);
+        if ( $category_slugs && taxonomy_exists('nf_category') ) {
             $tax_query[] = array(
                 'taxonomy' => 'nf_category',
                 'field' => 'slug',
-                'terms' => $category_slug,
+                'terms' => $category_slugs,
+                'operator' => 'IN',
                 'include_children' => true,
             );
         }
@@ -1576,6 +1619,12 @@ class NF_Catalog {
         }
         if ( ! NF_Commercial_Config::feature('feature_rakuten') && $args['portal'] === 'rakuten' ) {
             $args['portal'] = NF_Commercial_Config::feature('feature_yahoo') ? 'yahoo' : '';
+        }
+        if (!NF_Commercial_Config::feature('multi_municipality_filter') && !empty($args['municipalities'])) {
+            $args['municipality']=(string)reset($args['municipalities']); $args['municipalities']=array();
+        }
+        if (!NF_Commercial_Config::feature('multi_category_filter') && !empty($args['categories'])) {
+            $args['category']=(string)reset($args['categories']); $args['subcategory']=''; $args['type']=''; $args['categories']=array();
         }
 
         return $args;

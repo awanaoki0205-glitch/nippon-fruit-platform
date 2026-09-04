@@ -138,6 +138,10 @@ class NF_AI_Category_Classifier {
             NF_Category_Classifier::set_status($post_id, 'manual', 'manual', 1, '管理者が手動確定');
             return;
         }
+        if (class_exists('NF_Commercial_Config') && !NF_Commercial_Config::can_use_ai('text_ai')) {
+            NF_Category_Classifier::set_status($post_id,'text_ai_pending','rule',0,'契約機能または月間AI利用上限により保留');
+            return;
+        }
         $input = NF_Category_Classifier::input($post_id);
         $catalog = self::category_catalog();
         $rule_result = get_post_meta($post_id, NF_Category_Classifier::RESULT_META, true);

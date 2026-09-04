@@ -25,6 +25,10 @@ class NF_Image_Category_Classifier {
 
     public static function classify($post_id) {
         if (get_post_meta($post_id,NF_Category::CLASSIFICATION_LOCK_META,true)==='1') return;
+        if (class_exists('NF_Commercial_Config') && !NF_Commercial_Config::can_use_ai('image_ai')) {
+            NF_Category_Classifier::set_status($post_id,'image_ai_pending','text_ai',(float)get_post_meta($post_id,NF_Classification_Evidence::TEXT_CONFIDENCE_META,true),'契約機能または月間AI利用上限により保留');
+            return;
+        }
         $text = get_post_meta($post_id,NF_Category_Classifier::AI_RESULT_META,true);
         if (!is_array($text)) return self::finish_without_image($post_id,'テキスト判定結果がありません');
         $urls = self::image_urls($post_id,1);

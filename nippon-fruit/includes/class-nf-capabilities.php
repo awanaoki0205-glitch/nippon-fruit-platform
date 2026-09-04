@@ -4,8 +4,8 @@ if ( ! defined('ABSPATH') ) exit;
 class NF_Capabilities {
     const ROLE = 'customer_manager';
     const VERSION_OPTION = 'nf_capabilities_version';
-    const VERSION = '0.15.5';
-    public static function caps() { return array('nf_view_dashboard','nf_manage_banners','nf_manage_features','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'); }
+    const VERSION = '0.16.0';
+    public static function caps() { return array('nf_view_dashboard','nf_manage_banners','nf_manage_features','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_view_product_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'); }
     public static function activate() {
         $caps = array('read'=>true,'upload_files'=>true);
         foreach(self::caps() as $cap) $caps[$cap] = true;
@@ -17,8 +17,8 @@ class NF_Capabilities {
         // add_role() does not update an existing role. Repair capabilities on upgrade.
         if ($role) foreach($caps as $cap => $grant) $role->add_cap($cap, $grant);
         $role_sets = array(
-            'nf_customer_owner'=>array('read','upload_files','nf_view_dashboard','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'),
-            'nf_customer_manager'=>array('read','upload_files','nf_view_dashboard','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'),
+            'nf_customer_owner'=>array('read','upload_files','nf_view_dashboard','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_view_product_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'),
+            'nf_customer_manager'=>array('read','upload_files','nf_view_dashboard','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_view_product_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'),
             'nf_customer_reviewer'=>array('read','nf_view_dashboard','nf_view_intelligence','nf_review_classification','nf_view_contract'),
             'nf_customer_viewer'=>array('read','nf_view_dashboard','nf_view_intelligence','nf_view_contract'),
         );
@@ -69,6 +69,7 @@ class NF_Capabilities {
         $items=array(
             array('アクセス・送客分析','admin.php?page=nf-customer-analytics','nf_view_analytics'),
             array('Classification Intelligence','admin.php?page=nf-customer-intelligence','nf_view_intelligence'),
+            array('Product Intelligence','admin.php?page=nf-product-intelligence','nf_view_product_intelligence'),
             array('独自カテゴリ管理','edit-tags.php?taxonomy='.NF_Category::TAXONOMY,'nf_manage_categories'),
             array('自治体管理','edit-tags.php?taxonomy=nf_municipality','nf_manage_categories'),
             array('カテゴリ・自治体の並び順','admin.php?page=nf-customer-category-order','nf_manage_categories'),

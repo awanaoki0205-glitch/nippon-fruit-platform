@@ -41,7 +41,20 @@ jQuery(function($){
     const $headerRefine = $('#nf_furusato_refine_button');
 
     let request = null;
+    let previewRequest = null;
+    let previewTimer = null;
     let appliedState = null;
+    const multiMunicipality = !!(window.NF_CATALOG && NF_CATALOG.multiMunicipality);
+    const multiCategory = !!(window.NF_CATALOG && NF_CATALOG.multiCategory);
+
+    function selectedSlugs(selector, dataKey) {
+        return $(selector + ':checked').map(function(){ return String($(this).data(dataKey) || ''); }).get().filter(Boolean);
+    }
+    function selectedCategorySlugs() {
+        return $('.nf-category-tree-check:checked').map(function(){
+            return String($(this).data('type') || $(this).data('subcategory') || $(this).data('category') || '');
+        }).get().filter(function(value,index,all){ return value && all.indexOf(value)===index; });
+    }
 
     function isMobileFilterMode() {
         return !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
@@ -52,13 +65,32 @@ jQuery(function($){
         runFilter(1, {scroll:false, closeFilter:false});
     }
 
-    // カテゴリ・自治体は選択した瞬間に結果へ反映する。
-    // 以前はPCだけが即時反映され、スマホでは非表示の「適用」操作が必要だった。
+    // 複数選択中は閉じず、適用ボタンで確定する。
     function applyTreeChoice() {
-        runFilter(1, {
-            scroll: isMobileFilterMode(),
-            closeFilter: false
-        });
+        updateSelectionSummary();
+        if (multiMunicipality || multiCategory) schedulePreviewCount();
+        else runFilter(1, {scroll:isMobileFilterMode(),closeFilter:false});
+    }
+
+    function schedulePreviewCount() {
+        window.clearTimeout(previewTimer);
+        previewTimer=window.setTimeout(function(){
+            const state=currentState();
+            if(previewRequest&&previewRequest.readyState!==4) previewRequest.abort();
+            previewRequest=$.post(NF_CATALOG.ajaxUrl,{action:'nf_catalog_filter',nonce:NF_CATALOG.nonce,count_only:1,
+                keyword:state.q,municipality:state.municipality,municipalities:(state.municipalities||[]).join(','),fruit:state.fruit,
+                category:state.category,subcategory:state.subcategory,type:state.type,categories:(state.categories||[]).join(','),status:state.status,
+                price_range:state.price,price_min:state.price_min,price_max:state.price_max,portal:state.portal,yahoo_store:state.yahoo_store,order:state.order,per_page:state.per_page,paged:1
+            }).done(function(res){if(res&&res.success){const n=Number(res.data.found||0).toLocaleString('ja-JP');$applyFilters.text(n+'件の商品を見る');}});
+        },250);
+    }
+
+    function updateSelectionSummary() {
+        const municipalities=selectedSlugs('.nf-municipality-tree-check','slug');
+        const categories=selectedCategorySlugs();
+        if ($municipalityTreeSummary.length) $municipalityTreeSummary.text(municipalities.length+'自治体選択中').prop('hidden',!municipalities.length);
+        if ($categoryTreeSummary.length) $categoryTreeSummary.text(categories.length+'カテゴリ選択中').prop('hidden',!categories.length);
+        $applyFilters.text((municipalities.length||categories.length) ? municipalities.length+'自治体・'+categories.length+'カテゴリを適用' : 'この条件で絞り込む');
     }
 
     function placeSearchToolsAboveCategory() {
@@ -150,10 +182,12 @@ jQuery(function($){
         return {
             q: $keyword.val().trim(),
             municipality: $municipality.val() || '',
+            municipalities: multiMunicipality ? selectedSlugs('.nf-municipality-tree-check','slug') : [],
             fruit: $fruit.val() || '',
             category: $category.length ? ($category.val() || '') : '',
             subcategory: $subcategory.length ? ($subcategory.val() || '') : '',
             type: $type.length ? ($type.val() || '') : '',
+            categories: multiCategory ? selectedCategorySlugs() : [],
             status: $status.val() || '',
             price: $priceRange.length ? ($priceRange.val() || '') : '',
             price_min: priceMin,
@@ -171,10 +205,12 @@ jQuery(function($){
         return !(
             state.q ||
             state.municipality ||
+            (state.municipalities && state.municipalities.length) ||
             state.fruit ||
             state.category ||
             state.subcategory ||
             state.type ||
+            (state.categories && state.categories.length) ||
             state.status ||
             state.price ||
             state.price_min ||
@@ -679,10 +715,12 @@ jQuery(function($){
         const params = {
             q: state.q,
             municipality: state.municipality,
+            municipalities: (state.municipalities || []).join(','),
             fruit: state.fruit,
             category: state.category,
             subcategory: state.subcategory,
             type: state.type,
+            categories: (state.categories || []).join(','),
             status: state.status,
             price: state.price,
             price_min: state.price_min || '',
@@ -715,7 +753,9 @@ jQuery(function($){
             });
         }
 
-        if (state.municipality) {
+        if (state.municipalities && state.municipalities.length) {
+            $('.nf-municipality-tree-check:checked').each(function(){ items.push({key:'municipality:'+String($(this).data('slug')||''),label:'自治体',value:String($(this).data('name')||'')}); });
+        } else if (state.municipality) {
             items.push({
                 key: 'municipality',
                 label: '自治体',
@@ -731,7 +771,12 @@ jQuery(function($){
             });
         }
 
-        if (state.category) {
+        if (state.categories && state.categories.length) {
+            $('.nf-category-tree-check:checked').each(function(){
+                const slug=String($(this).data('type')||$(this).data('subcategory')||$(this).data('category')||'');
+                items.push({key:'category:'+slug,label:'カテゴリ',value:$(this).siblings('.nf-category-tree-name').text()||slug});
+            });
+        } else if (state.category) {
             items.push({key:'category',label:'大カテゴリ',value:optionText($category)});
         }
         if (state.subcategory) {
@@ -830,6 +875,12 @@ jQuery(function($){
     }
 
     function clearFilterKey(key) {
+        if (key.indexOf('municipality:')===0) {
+            const slug=key.slice(13); $('.nf-municipality-tree-check').filter(function(){return String($(this).data('slug')||'')===slug;}).prop('checked',false); updateSelectionSummary(); return;
+        }
+        if (key.indexOf('category:')===0) {
+            const slug=key.slice(9); $('.nf-category-tree-check').filter(function(){return String($(this).data('type')||$(this).data('subcategory')||$(this).data('category')||'')===slug;}).prop('checked',false); updateSelectionSummary(); return;
+        }
         switch (key) {
             case 'q':
                 $keyword.val('');
@@ -957,10 +1008,12 @@ jQuery(function($){
             nonce: NF_CATALOG.nonce,
             keyword: state.q,
             municipality: state.municipality,
+            municipalities: (state.municipalities || []).join(','),
             fruit: state.fruit,
             category: state.category,
             subcategory: state.subcategory,
             type: state.type,
+            categories: (state.categories || []).join(','),
             status: state.status,
             price_range: state.price,
             price_min: state.price_min,
@@ -1119,11 +1172,14 @@ jQuery(function($){
     $('#nf_catalog_reset').on('click', function(){
         $keyword.val('');
         $municipality.val('');
+        $('.nf-municipality-tree-check').prop('checked',false);
         $fruit.val('');
         $category.val('');
         refreshSubcategories('');
         resetCategoryDrill();
         syncCategoryTreeSelection();
+        $('.nf-category-tree-check').prop('checked',false);
+        updateSelectionSummary();
         $status.val('');
 
         if ($priceRange.length) {
@@ -1258,6 +1314,14 @@ jQuery(function($){
 
     $(document).on('change', '.nf-category-tree-check', function(){
         const $choice = $(this);
+        if (multiCategory) {
+            if ($choice.prop('checked')) {
+                $choice.closest('.nf-category-tree-item').find('>.nf-category-tree-children .nf-category-tree-check').prop('checked',false);
+                $choice.parents('.nf-category-tree-children').each(function(){ $(this).siblings('.nf-category-tree-row').find('.nf-category-tree-check').prop('checked',false); });
+            }
+            updateSelectionSummary();
+            return;
+        }
         if (!$choice.prop('checked')) {
             applyCategoryPath('', '', '');
             applyTreeChoice();
@@ -1275,9 +1339,9 @@ jQuery(function($){
 
     $(document).on('change', '.nf-municipality-tree-check', function(){
         const $choice = $(this);
-        $municipalityTreeRoot.find('.nf-municipality-tree-check').not(this).prop('checked', false);
+        if (!multiMunicipality) $municipalityTreeRoot.find('.nf-municipality-tree-check').not(this).prop('checked', false);
         $municipality.val($choice.prop('checked') ? String($choice.data('slug') || '') : '');
-        syncMunicipalityTreeSelection();
+        if (!multiMunicipality) syncMunicipalityTreeSelection(); else updateSelectionSummary();
         applyTreeChoice();
     });
 
@@ -1379,6 +1443,10 @@ jQuery(function($){
         );
         syncMunicipalityTreeSelection();
     }
+    if (multiMunicipality && params.get('municipalities')) {
+        const selected=params.get('municipalities').split(',');
+        $municipalityTreeRoot.find('.nf-municipality-tree-check').each(function(){ $(this).prop('checked',selected.indexOf(String($(this).data('slug')||''))!==-1); });
+    }
 
     if (params.get('fruit')) {
         $fruit.val(params.get('fruit'));
@@ -1391,6 +1459,14 @@ jQuery(function($){
             params.get('type') || ''
         );
     }
+    if (multiCategory && params.get('categories')) {
+        const selected=params.get('categories').split(',');
+        $categoryTreeRoot.find('.nf-category-tree-check').each(function(){
+            const slug=String($(this).data('type')||$(this).data('subcategory')||$(this).data('category')||'');
+            $(this).prop('checked',selected.indexOf(slug)!==-1);
+        });
+    }
+    updateSelectionSummary();
 
     if (params.get('status')) {
         $status.val(params.get('status'));
