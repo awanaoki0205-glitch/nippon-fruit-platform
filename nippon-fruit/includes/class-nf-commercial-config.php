@@ -11,16 +11,19 @@ class NF_Commercial_Config {
                 'label'=>'Starter', 'feature_rakuten'=>1, 'feature_yahoo'=>0,
                 'municipality_limit'=>1, 'feature_price'=>0,
                 'feature_review_sort'=>0, 'feature_advanced_ranking'=>0,
+                'feature_basic_analytics'=>1, 'feature_product_analytics'=>0, 'feature_advanced_analytics'=>0,
             ),
             'standard' => array(
                 'label'=>'Standard', 'feature_rakuten'=>1, 'feature_yahoo'=>1,
                 'municipality_limit'=>0, 'feature_price'=>1,
                 'feature_review_sort'=>0, 'feature_advanced_ranking'=>0,
+                'feature_basic_analytics'=>1, 'feature_product_analytics'=>1, 'feature_advanced_analytics'=>0,
             ),
             'growth' => array(
                 'label'=>'Growth', 'feature_rakuten'=>1, 'feature_yahoo'=>1,
                 'municipality_limit'=>0, 'feature_price'=>1,
                 'feature_review_sort'=>1, 'feature_advanced_ranking'=>1,
+                'feature_basic_analytics'=>1, 'feature_product_analytics'=>1, 'feature_advanced_analytics'=>1,
             ),
         );
     }
@@ -30,6 +33,7 @@ class NF_Commercial_Config {
             'plan'=>'growth', 'feature_rakuten'=>1, 'feature_yahoo'=>1,
             'municipality_limit'=>0, 'feature_price'=>1, 'feature_review_sort'=>1,
             'feature_advanced_ranking'=>1, 'service_name'=>'ふるさと納税',
+            'feature_basic_analytics'=>1, 'feature_product_analytics'=>1, 'feature_advanced_analytics'=>1,
             'display_brand'=>'', 'site_url'=>'', 'contact_name'=>'',
             'contact_email'=>'', 'contact_phone'=>'',
             'customer_login_slug'=>'client-login',
@@ -96,8 +100,8 @@ class NF_Commercial_Config {
         <tr><th>サイトURL</th><td><input type="url" class="regular-text" name="<?php echo esc_attr(self::OPTION); ?>[site_url]" value="<?php echo esc_attr($c['site_url']); ?>"></td></tr></table>
         <h2>顧客管理画面</h2><table class="form-table"><tr><th>専用ログインURL</th><td><code><?php echo esc_html(home_url('/')); ?></code><input type="text" name="<?php echo esc_attr(self::OPTION); ?>[customer_login_slug]" value="<?php echo esc_attr($c['customer_login_slug']); ?>" style="width:220px"><code>/</code><p class="description">保存後のURL: <a href="<?php echo esc_url(home_url('/'.$c['customer_login_slug'].'/')); ?>" target="_blank" rel="noopener"><?php echo esc_html(home_url('/'.$c['customer_login_slug'].'/')); ?></a></p></td></tr></table>
         <h2>契約内容</h2><table class="form-table"><tr><th>プラン</th><td><select name="<?php echo esc_attr(self::OPTION); ?>[plan]"><?php foreach(self::plans() as $v=>$definition): ?><option value="<?php echo esc_attr($v); ?>" <?php selected($c['plan'],$v); ?>><?php echo esc_html($definition['label']); ?></option><?php endforeach; ?></select><p class="description">保存すると契約機能が自動適用されます。個別に上位機能をONにはできません。</p></td></tr></table>
-        <table class="widefat striped" style="max-width:920px;margin:12px 0 20px"><thead><tr><th>プラン</th><th>楽天</th><th>Yahoo!</th><th>自治体</th><th>寄附額・価格順</th><th>レビュー順</th><th>高度ランキング</th></tr></thead><tbody>
-        <?php foreach(self::plans() as $key=>$definition): ?><tr<?php echo $c['plan']===$key?' style="font-weight:700;background:#eef7ee"':''; ?>><td><?php echo esc_html($definition['label']); ?></td><td>○</td><td><?php echo $definition['feature_yahoo']?'○':'—'; ?></td><td><?php echo $definition['municipality_limit']?esc_html($definition['municipality_limit'].'自治体'):'複数'; ?></td><td><?php echo $definition['feature_price']?'○':'—'; ?></td><td><?php echo $definition['feature_review_sort']?'○':'—'; ?></td><td><?php echo $definition['feature_advanced_ranking']?'○':'—'; ?></td></tr><?php endforeach; ?>
+        <table class="widefat striped" style="max-width:1100px;margin:12px 0 20px"><thead><tr><th>プラン</th><th>楽天</th><th>Yahoo!</th><th>自治体</th><th>寄附額・価格順</th><th>レビュー順</th><th>高度ランキング</th><th>基本分析</th><th>商品別分析</th><th>高度分析</th></tr></thead><tbody>
+        <?php foreach(self::plans() as $key=>$definition): ?><tr<?php echo $c['plan']===$key?' style="font-weight:700;background:#eef7ee"':''; ?>><td><?php echo esc_html($definition['label']); ?></td><td>○</td><td><?php echo $definition['feature_yahoo']?'○':'—'; ?></td><td><?php echo $definition['municipality_limit']?esc_html($definition['municipality_limit'].'自治体'):'複数'; ?></td><td><?php echo $definition['feature_price']?'○':'—'; ?></td><td><?php echo $definition['feature_review_sort']?'○':'—'; ?></td><td><?php echo $definition['feature_advanced_ranking']?'○':'—'; ?></td><td><?php echo $definition['feature_basic_analytics']?'○':'—'; ?></td><td><?php echo $definition['feature_product_analytics']?'○':'—'; ?></td><td><?php echo $definition['feature_advanced_analytics']?'○':'—'; ?></td></tr><?php endforeach; ?>
         </tbody></table>
         <?php submit_button('Administrator設定を保存'); ?></form></div><?php
     }

@@ -2255,7 +2255,7 @@ class NF_Catalog {
                 ? NF_Category::public_terms_for_post($post_id)
                 : wp_get_post_terms($post_id, 'nf_category');
             ?>
-            <article class="nf-catalog-card">
+            <article class="nf-catalog-card" data-nf-product-id="<?php echo intval(get_the_ID()); ?>">
               <a class="nf-catalog-card-image" href="<?php the_permalink(); ?>">
                 <?php if ( $image ) : ?>
                   <img src="<?php echo esc_url($image); ?>" alt="<?php echo esc_attr($title); ?>" loading="lazy">

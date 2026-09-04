@@ -4,7 +4,7 @@ if ( ! defined('ABSPATH') ) exit;
 class NF_Capabilities {
     const ROLE = 'customer_manager';
     const VERSION_OPTION = 'nf_capabilities_version';
-    const VERSION = '0.15.1';
+    const VERSION = '0.15.2';
     public static function caps() { return array('nf_view_dashboard','nf_manage_banners','nf_manage_features','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'); }
     public static function activate() {
         $caps = array('read'=>true,'upload_files'=>true);
@@ -45,6 +45,7 @@ class NF_Capabilities {
         add_menu_page('返礼品システム', '返礼品システム', 'nf_view_dashboard', 'nf-customer-dashboard', array(__CLASS__, 'dashboard'), 'dashicons-store', 26);
         if (class_exists('NF_Customer_Portal') && NF_Customer_Portal::is_customer()) {
             add_submenu_page('nf-customer-dashboard','運用ダッシュボード','運用ダッシュボード','nf_view_dashboard','nf-customer-dashboard',array(__CLASS__,'dashboard'));
+            add_submenu_page('nf-customer-dashboard','アクセス・送客分析','アクセス・送客分析','nf_view_analytics','nf-customer-analytics',array('NF_Analytics','render_dashboard'));
             add_submenu_page('nf-customer-dashboard','自治体','自治体','nf_manage_categories','edit-tags.php?taxonomy=nf_municipality&post_type=' . NF_Core::POST_TYPE);
             add_submenu_page('nf-customer-dashboard','カテゴリ','カテゴリ','nf_manage_categories','edit-tags.php?taxonomy=' . NF_Category::TAXONOMY . '&post_type=' . NF_Core::POST_TYPE);
             add_submenu_page('nf-customer-dashboard','かんたん設定','かんたん設定','nf_manage_display','nf-customer-easy-settings',array(__CLASS__,'customer_display'));
@@ -52,6 +53,7 @@ class NF_Capabilities {
             add_submenu_page('nf-customer-dashboard','コンテンツ・表示設定','コンテンツ・表示設定','nf_manage_display','nf-customer-display',array(__CLASS__,'customer_display'));
             add_submenu_page('nf-customer-dashboard','契約内容','契約内容','nf_view_contract','nf-customer-contract',array(__CLASS__,'contract'));
         } else {
+            add_submenu_page('nf-customer-dashboard','アクセス・送客分析','アクセス・送客分析','nf_view_analytics','nf-customer-analytics',array('NF_Analytics','render_dashboard'));
             add_submenu_page('nf-customer-dashboard','コンテンツ・表示設定','コンテンツ・表示設定','nf_manage_display','nf-customer-display',array(__CLASS__,'customer_display'));
             add_submenu_page('nf-customer-dashboard','カテゴリ・自治体の並び順','カテゴリ・自治体','nf_manage_categories','nf-customer-category-order',array(__CLASS__,'customer_category_order'));
             add_submenu_page('nf-customer-dashboard','契約内容','契約内容','nf_view_contract','nf-customer-contract',array(__CLASS__,'contract'));
@@ -65,6 +67,7 @@ class NF_Capabilities {
         $logout_url = class_exists('NF_Customer_Portal') ? NF_Customer_Portal::logout_url() : wp_logout_url(home_url('/'));
         echo '<div class="wrap"><div class="nf-customer-brand" style="position:relative;padding-right:130px"><h1>' . esc_html($brand) . '</h1><p>運用管理ダッシュボード</p><a href="' . esc_url($logout_url) . '" style="position:absolute;right:22px;top:50%;transform:translateY(-50%);padding:9px 14px;border:1px solid rgba(255,255,255,.75);border-radius:8px;color:#fff;text-decoration:none;font-weight:700">ログアウト</a></div><p>公開サイトの表示内容をここから管理できます。契約やシステムの内部設定は運営管理者が管理します。</p><p><a class="button button-primary" href="' . esc_url(NF_System_Page::url()) . '" target="_blank" rel="noopener">公開サイトを確認</a></p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;max-width:950px;margin-top:22px">';
         $items=array(
+            array('アクセス・送客分析','admin.php?page=nf-customer-analytics','nf_view_analytics'),
             array('Classification Intelligence','admin.php?page=nf-customer-intelligence','nf_view_intelligence'),
             array('独自カテゴリ管理','edit-tags.php?taxonomy='.NF_Category::TAXONOMY,'nf_manage_categories'),
             array('自治体管理','edit-tags.php?taxonomy=nf_municipality','nf_manage_categories'),
@@ -93,6 +96,9 @@ class NF_Capabilities {
         if (!empty($c['feature_price'])) $features[] = '寄附額・価格順';
         if (!empty($c['feature_review_sort'])) $features[] = 'レビュー順';
         if (!empty($c['feature_advanced_ranking'])) $features[] = '高度ランキング';
+        if (!empty($c['feature_basic_analytics'])) $features[] = '基本アクセス・送客分析';
+        if (!empty($c['feature_product_analytics'])) $features[] = '返礼品別分析';
+        if (!empty($c['feature_advanced_analytics'])) $features[] = '流入元・高度分析';
         echo '<div class="wrap nf-customer-contract"><div class="nf-page-heading"><span>CONTRACT</span><h1>契約内容</h1><p>現在ご利用いただけるプランと機能です。</p></div><div class="nf-contract-card"><div class="nf-contract-plan"><small>ご利用プラン</small><strong>' . esc_html(ucfirst($c['plan'])) . '</strong></div><table class="widefat striped"><tr><th>利用機能</th><td>' . esc_html(implode(' / ', $features)) . '</td></tr><tr><th>利用URL</th><td><a href="' . esc_url(NF_System_Page::url()) . '" target="_blank" rel="noopener">' . esc_html(NF_System_Page::url()) . '</a></td></tr><tr><th>自治体上限</th><td>' . (absint($c['municipality_limit']) ?: '複数') . '</td></tr></table></div><p class="nf-customer-help">契約機能の変更は運営管理者へお問い合わせください。</p></div>';
     }
     public static function guard_customer_admin() {
