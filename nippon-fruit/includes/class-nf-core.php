@@ -30,7 +30,7 @@ class NF_Core {
      * serving one or several prefectures.
      */
     public static function maybe_split_prefecture_office_terms() {
-        $migration_version = '1';
+        $migration_version = '2';
         if ( get_option('nf_prefecture_office_migration_version', '') === $migration_version ) return;
         if ( ! taxonomy_exists('nf_municipality') || ! post_type_exists(self::POST_TYPE) ) return;
 
@@ -41,7 +41,27 @@ class NF_Core {
         ));
         if ( is_wp_error($roots) ) return;
 
-        $summary = array('groups' => 0, 'destinations' => 0, 'products' => 0);
+        $summary = array('groups' => 0, 'destinations' => 0, 'products' => 0, 'reparented' => 0);
+
+        // Older installations commonly stored a prefecture and all of its
+        // cities as separate root terms. If exactly one prefecture is present,
+        // municipality-shaped roots can be safely attached to that prefecture.
+        // Multi-prefecture installations remain explicit: their parent is set
+        // per municipality in the taxonomy screen, avoiding cross-prefecture
+        // guesses based only on a place name.
+        $prefecture_roots = array_values(array_filter($roots, function($term) {
+            return preg_match('/(都|道|府|県)$/u', (string)$term->name) === 1;
+        }));
+        if ( count($prefecture_roots) === 1 ) {
+            $prefecture_id = (int)$prefecture_roots[0]->term_id;
+            foreach ( $roots as $candidate ) {
+                if ( (int)$candidate->term_id === $prefecture_id ) continue;
+                if ( ! preg_match('/(市|区|町|村)$/u', (string)$candidate->name) ) continue;
+                $updated = wp_update_term((int)$candidate->term_id, 'nf_municipality', array('parent'=>$prefecture_id));
+                if ( ! is_wp_error($updated) ) $summary['reparented']++;
+            }
+        }
+
         foreach ( $roots as $root ) {
             if ( ! preg_match('/(都|道|府|県)$/u', (string)$root->name, $suffix) ) continue;
 
