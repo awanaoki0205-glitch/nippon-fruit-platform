@@ -3,7 +3,7 @@ if ( ! defined('ABSPATH') ) exit;
 
 /** Privacy-conscious first-party traffic and outbound referral analytics. */
 class NF_Analytics {
-    const DB_VERSION = '1.1';
+    const DB_VERSION = '1.2';
     const DB_OPTION = 'nf_analytics_db_version';
     const CLEANUP_HOOK = 'nf_analytics_cleanup';
 
@@ -18,6 +18,11 @@ class NF_Analytics {
     public static function table() {
         global $wpdb;
         return $wpdb->prefix . 'nf_analytics_events';
+    }
+
+    public static function summary_table() {
+        global $wpdb;
+        return $wpdb->prefix . 'nf_analytics_summary';
     }
 
     public static function activate() {
@@ -60,8 +65,31 @@ class NF_Analytics {
             KEY session_hash (session_hash)
         ) {$charset};";
         dbDelta($sql);
+        $summary = self::summary_table();
+        $summary_sql = "CREATE TABLE {$summary} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            period_start date NOT NULL,
+            granularity varchar(8) NOT NULL,
+            event_type varchar(32) NOT NULL,
+            product_id bigint(20) unsigned NOT NULL DEFAULT 0,
+            portal varchar(24) NOT NULL DEFAULT '',
+            referrer_host varchar(190) NOT NULL DEFAULT '',
+            device varchar(16) NOT NULL DEFAULT '',
+            keyword varchar(190) NOT NULL DEFAULT '',
+            category_slug varchar(190) NOT NULL DEFAULT '',
+            municipality_slug varchar(190) NOT NULL DEFAULT '',
+            event_count bigint(20) unsigned NOT NULL DEFAULT 0,
+            visitor_count bigint(20) unsigned NOT NULL DEFAULT 0,
+            session_count bigint(20) unsigned NOT NULL DEFAULT 0,
+            PRIMARY KEY  (id),
+            KEY period_granularity (period_start, granularity),
+            KEY event_type (event_type),
+            KEY product_id (product_id)
+        ) {$charset};";
+        dbDelta($summary_sql);
         update_option(self::DB_OPTION, self::DB_VERSION, false);
         self::backfill_popularity();
+        self::refresh_all_summaries();
     }
 
     private static function backfill_popularity() {
@@ -177,7 +205,39 @@ class NF_Analytics {
 
     public static function cleanup() {
         global $wpdb;
+        self::refresh_recent_summaries();
         $wpdb->query($wpdb->prepare('DELETE FROM ' . self::table() . ' WHERE event_date < %s', wp_date('Y-m-d', strtotime('-400 days'))));
+        $wpdb->query($wpdb->prepare("DELETE FROM " . self::summary_table() . " WHERE granularity='day' AND period_start < %s", wp_date('Y-m-d', strtotime('-5 years'))));
+        $wpdb->query($wpdb->prepare("DELETE FROM " . self::summary_table() . " WHERE granularity='month' AND period_start < %s", wp_date('Y-m-01', strtotime('-10 years'))));
+    }
+
+    private static function aggregate_period($granularity, $start, $end) {
+        global $wpdb;
+        $events = self::table();
+        $summary = self::summary_table();
+        $period_sql = $granularity === 'month' ? "DATE_FORMAT(event_date, '%%Y-%%m-01')" : 'event_date';
+        $wpdb->query($wpdb->prepare("DELETE FROM {$summary} WHERE granularity=%s AND period_start BETWEEN %s AND %s", $granularity, $start, $end));
+        $wpdb->query($wpdb->prepare("INSERT INTO {$summary}
+            (period_start,granularity,event_type,product_id,portal,referrer_host,device,keyword,category_slug,municipality_slug,event_count,visitor_count,session_count)
+            SELECT {$period_sql}, %s, event_type, product_id, portal, referrer_host, device, keyword, category_slug, municipality_slug,
+                   SUM(event_count), COUNT(DISTINCT NULLIF(visitor_hash,'')), COUNT(DISTINCT NULLIF(session_hash,''))
+            FROM {$events} WHERE event_date BETWEEN %s AND %s
+            GROUP BY {$period_sql},event_type,product_id,portal,referrer_host,device,keyword,category_slug,municipality_slug",
+            $granularity, $start, $end));
+    }
+
+    private static function refresh_all_summaries() {
+        global $wpdb;
+        $bounds = $wpdb->get_row('SELECT MIN(event_date) first_day, MAX(event_date) last_day FROM ' . self::table(), ARRAY_A);
+        if ( empty($bounds['first_day']) || empty($bounds['last_day']) ) return;
+        self::aggregate_period('day', max($bounds['first_day'], wp_date('Y-m-d', strtotime('-5 years'))), $bounds['last_day']);
+        self::aggregate_period('month', max(substr($bounds['first_day'],0,7).'-01', wp_date('Y-m-01', strtotime('-10 years'))), $bounds['last_day']);
+    }
+
+    private static function refresh_recent_summaries() {
+        $today = wp_date('Y-m-d');
+        self::aggregate_period('day', wp_date('Y-m-d', strtotime('-2 days')), $today);
+        self::aggregate_period('month', wp_date('Y-m-01', strtotime('-1 month')), $today);
     }
 
     private static function scalar($sql, $args = array()) {
@@ -189,31 +249,98 @@ class NF_Analytics {
         return $b > 0 ? round(($a / $b) * 100, 1) : 0;
     }
 
+    private static function ranges() {
+        return array(
+            '7d'=>array('label'=>'直近7日','days'=>7,'summary'=>false),
+            '30d'=>array('label'=>'直近30日','days'=>30,'summary'=>false),
+            '90d'=>array('label'=>'直近90日','days'=>90,'summary'=>false),
+            '1y'=>array('label'=>'直近1年','days'=>365,'summary'=>false),
+            '5y'=>array('label'=>'直近5年','days'=>1826,'summary'=>true),
+            '10y'=>array('label'=>'直近10年','days'=>3652,'summary'=>true),
+        );
+    }
+
+    private static function date_window($days, $offset = 0) {
+        $end_offset = max(0, $offset);
+        return array(
+            'start'=>wp_date('Y-m-d', strtotime('-' . ($days + $end_offset - 1) . ' days')),
+            'end'=>wp_date('Y-m-d', strtotime('-' . $end_offset . ' days')),
+        );
+    }
+
+    private static function total_snapshot($window, $summary_granularity = false) {
+        global $wpdb;
+        $table = $summary_granularity ? self::summary_table() : self::table();
+        $date_col = $summary_granularity ? 'period_start' : 'event_date';
+        $extra = $summary_granularity ? $wpdb->prepare(' AND granularity=%s', $summary_granularity) : '';
+        $where = $wpdb->prepare("{$date_col} BETWEEN %s AND %s{$extra}", $window['start'], $window['end']);
+        $row = $wpdb->get_row("SELECT
+            COALESCE(SUM((event_type='catalog_view')*event_count),0) catalog_views,
+            COALESCE(SUM((event_type='product_impression')*event_count),0) impressions,
+            COALESCE(SUM((event_type='detail_view')*event_count),0) details,
+            COALESCE(SUM((event_type='outbound_click')*event_count),0) clicks
+            FROM {$table} WHERE {$where}", ARRAY_A);
+        $row = is_array($row) ? array_map('intval', $row) : array('catalog_views'=>0,'impressions'=>0,'details'=>0,'clicks'=>0);
+        $row['has_data'] = array_sum($row) > 0;
+        return $row;
+    }
+
+    private static function comparison_value($current, $previous, $has_data) {
+        if ( ! $has_data ) return array('text'=>'比較データなし','class'=>'is-neutral');
+        $delta = (int)$current - (int)$previous;
+        if ( (int)$previous === 0 ) return array('text'=>sprintf('%+d', $delta) . '（率算出不可）','class'=>$delta >= 0?'is-up':'is-down');
+        $rate = round(($delta / (int)$previous) * 100, 1);
+        return array('text'=>sprintf('%+d / %+.1f%%', $delta, $rate),'class'=>$delta >= 0?'is-up':'is-down');
+    }
+
     public static function render_dashboard() {
         if ( ! current_user_can('nf_view_analytics') ) wp_die('権限がありません。');
         if ( class_exists('NF_Commercial_Config') && ! NF_Commercial_Config::feature('feature_basic_analytics') ) wp_die('現在の契約プランでは分析機能を利用できません。');
         self::maybe_upgrade();
         global $wpdb;
-        $table = self::table();
-        $days = isset($_GET['days']) ? absint($_GET['days']) : 30;
-        if ( ! in_array($days, array(7,30,90), true) ) $days = 30;
-        $start = wp_date('Y-m-d', strtotime('-' . ($days - 1) . ' days'));
-        $where = $wpdb->prepare('event_date >= %s', $start);
+        $ranges = self::ranges();
+        $range_key = isset($_GET['range']) ? sanitize_key(wp_unslash($_GET['range'])) : '';
+        if ( $range_key === '' && isset($_GET['days']) ) $range_key = absint($_GET['days']).'d';
+        if ( ! isset($ranges[$range_key]) ) $range_key = '30d';
+        $range = $ranges[$range_key];
+        $days = $range['days'];
+        $summary_mode = ! empty($range['summary']);
+        if ( $summary_mode && ! get_transient('nf_analytics_summary_refreshed') ) {
+            self::refresh_recent_summaries();
+            set_transient('nf_analytics_summary_refreshed', 1, HOUR_IN_SECONDS);
+        }
+        $window = self::date_window($days);
+        $previous_window = self::date_window($days, $days);
+        $year_window = array('start'=>wp_date('Y-m-d', strtotime($window['start'].' -1 year')),'end'=>wp_date('Y-m-d', strtotime($window['end'].' -1 year')));
+        $table = $summary_mode ? self::summary_table() : self::table();
+        $date_col = $summary_mode ? 'period_start' : 'event_date';
+        $extra = $summary_mode ? " AND granularity='month'" : '';
+        $where = $wpdb->prepare("{$date_col} BETWEEN %s AND %s{$extra}", $window['start'], $window['end']);
+        $coverage = $wpdb->get_row("SELECT MIN({$date_col}) first_day, MAX({$date_col}) last_day FROM {$table} WHERE {$where}", ARRAY_A);
+        $raw_cutoff = wp_date('Y-m-d', strtotime('-399 days'));
+        $current_snapshot = self::total_snapshot($window, $summary_mode ? 'month' : false);
+        $previous_snapshot = self::total_snapshot($previous_window, $summary_mode ? 'month' : ($previous_window['start'] < $raw_cutoff ? 'day' : false));
+        $year_snapshot = self::total_snapshot($year_window, $summary_mode ? 'month' : ($year_window['start'] < $raw_cutoff ? 'day' : false));
 
         $catalog_views = self::scalar("SELECT COALESCE(SUM(event_count),0) FROM {$table} WHERE {$where} AND event_type='catalog_view'");
         $impressions = self::scalar("SELECT COALESCE(SUM(event_count),0) FROM {$table} WHERE {$where} AND event_type='product_impression'");
         $details = self::scalar("SELECT COALESCE(SUM(event_count),0) FROM {$table} WHERE {$where} AND event_type='detail_view'");
         $clicks = self::scalar("SELECT COALESCE(SUM(event_count),0) FROM {$table} WHERE {$where} AND event_type='outbound_click'");
-        $visitors = self::scalar("SELECT COUNT(DISTINCT visitor_hash) FROM {$table} WHERE {$where} AND visitor_hash<>''");
-        $sessions = self::scalar("SELECT COUNT(DISTINCT session_hash) FROM {$table} WHERE {$where} AND session_hash<>''");
+        if ( $summary_mode ) {
+            $visitors = self::scalar("SELECT COALESCE(SUM(visitor_count),0) FROM {$table} WHERE {$where} AND event_type='catalog_view'");
+            $sessions = self::scalar("SELECT COALESCE(SUM(session_count),0) FROM {$table} WHERE {$where} AND event_type='catalog_view'");
+        } else {
+            $visitors = self::scalar("SELECT COUNT(DISTINCT visitor_hash) FROM {$table} WHERE {$where} AND visitor_hash<>''");
+            $sessions = self::scalar("SELECT COUNT(DISTINCT session_hash) FROM {$table} WHERE {$where} AND session_hash<>''");
+        }
         $advanced = ! class_exists('NF_Commercial_Config') || NF_Commercial_Config::feature('feature_advanced_analytics');
         $product_detail = ! class_exists('NF_Commercial_Config') || NF_Commercial_Config::feature('feature_product_analytics');
 
-        $trend = $wpdb->get_results("SELECT event_date,
+        $trend = $wpdb->get_results("SELECT {$date_col} event_date,
             SUM((event_type='product_impression')*event_count) impressions,
             SUM((event_type='detail_view')*event_count) details,
             SUM((event_type='outbound_click')*event_count) clicks
-            FROM {$table} WHERE {$where} GROUP BY event_date ORDER BY event_date ASC", ARRAY_A);
+            FROM {$table} WHERE {$where} GROUP BY {$date_col} ORDER BY {$date_col} ASC", ARRAY_A);
         $max_trend = 1;
         foreach ( $trend as $row ) $max_trend = max($max_trend, (int)$row['impressions'], (int)$row['details'], (int)$row['clicks']);
 
@@ -232,16 +359,18 @@ class NF_Analytics {
         $filters = $advanced ? $wpdb->get_results("SELECT keyword, category_slug, municipality_slug, SUM(event_count) total FROM {$table} WHERE {$where} AND event_type='filter_use' GROUP BY keyword,category_slug,municipality_slug ORDER BY total DESC LIMIT 12", ARRAY_A) : array();
         ?>
         <div class="wrap nf-analytics-admin">
-          <div class="nf-analytics-heading"><div><span>TRAFFIC &amp; REFERRAL</span><h1>アクセス・送客分析</h1><p>公開サイトへの流入から返礼品表示、詳細閲覧、楽天・Yahoo!への送客まで確認できます。</p></div><form method="get"><input type="hidden" name="page" value="nf-customer-analytics"><select name="days" onchange="this.form.submit()"><option value="7" <?php selected($days,7); ?>>直近7日</option><option value="30" <?php selected($days,30); ?>>直近30日</option><option value="90" <?php selected($days,90); ?>>直近90日</option></select></form></div>
+          <div class="nf-analytics-heading"><div><span>TRAFFIC &amp; REFERRAL</span><h1>アクセス・送客分析</h1><p>公開サイトへの流入から返礼品表示、詳細閲覧、楽天・Yahoo!への送客まで確認できます。</p></div><form method="get"><input type="hidden" name="page" value="nf-customer-analytics"><select name="range" onchange="this.form.submit()"><?php foreach($ranges as $key=>$definition): ?><option value="<?php echo esc_attr($key); ?>" <?php selected($range_key,$key); ?>><?php echo esc_html($definition['label']); ?></option><?php endforeach; ?></select></form></div>
           <div class="nf-analytics-cards">
             <?php foreach (array('利用者'=>$visitors.'人','セッション'=>$sessions.'回','一覧表示'=>$catalog_views.'回','商品インプレッション'=>$impressions.'回','詳細閲覧'=>$details.'回','送客クリック'=>$clicks.'回','詳細閲覧率'=>self::percent($details,$impressions).'%','送客率'=>self::percent($clicks,$details).'%') as $label=>$value): ?>
               <div class="nf-analytics-card"><small><?php echo esc_html($label); ?></small><strong><?php echo esc_html($value); ?></strong></div>
             <?php endforeach; ?>
           </div>
 
-          <section class="nf-analytics-panel"><h2>日別推移</h2><div class="nf-trend-legend"><span class="is-impression">商品表示</span><span class="is-detail">詳細閲覧</span><span class="is-click">送客</span></div><div class="nf-trend">
+          <section class="nf-analytics-panel"><h2>期間比較</h2><p class="description"><?php echo esc_html($range['label']); ?>を、同じ日数の直前期間および前年同期と比較します。<?php if(!empty($coverage['first_day'])): ?> この表示に含まれる計測期間：<?php echo esc_html($coverage['first_day']); ?>〜<?php echo esc_html($coverage['last_day']); ?>。<?php else: ?> 選択期間の計測データはまだありません。<?php endif; ?></p><div class="nf-comparison-table"><div><b>指標</b><b>現在</b><b>直前期間比</b><b>前年同期比</b></div><?php foreach(array('catalog_views'=>'一覧表示','impressions'=>'商品表示','details'=>'詳細閲覧','clicks'=>'送客クリック') as $metric=>$label): $previous_compare=self::comparison_value($current_snapshot[$metric],$previous_snapshot[$metric],$previous_snapshot['has_data']); $year_compare=self::comparison_value($current_snapshot[$metric],$year_snapshot[$metric],$year_snapshot['has_data']); ?><div><strong><?php echo esc_html($label); ?></strong><span><?php echo intval($current_snapshot[$metric]); ?></span><span class="<?php echo esc_attr($previous_compare['class']); ?>"><?php echo esc_html($previous_compare['text']); ?></span><span class="<?php echo esc_attr($year_compare['class']); ?>"><?php echo esc_html($year_compare['text']); ?></span></div><?php endforeach; ?></div></section>
+
+          <section class="nf-analytics-panel"><h2><?php echo $summary_mode?'月別':'日別'; ?>推移</h2><div class="nf-trend-legend"><span class="is-impression">商品表示</span><span class="is-detail">詳細閲覧</span><span class="is-click">送客</span></div><div class="nf-trend">
           <?php if(!$trend): ?><p>計測データはまだありません。</p><?php else: foreach($trend as $row): ?>
-            <div class="nf-trend-row"><time><?php echo esc_html(substr($row['event_date'],5)); ?></time><div class="nf-trend-bars"><i class="is-impression" style="width:<?php echo esc_attr(max(1,round($row['impressions']/$max_trend*100))); ?>%" title="表示 <?php echo intval($row['impressions']); ?>"></i><i class="is-detail" style="width:<?php echo esc_attr(max(1,round($row['details']/$max_trend*100))); ?>%" title="詳細 <?php echo intval($row['details']); ?>"></i><i class="is-click" style="width:<?php echo esc_attr(max(1,round($row['clicks']/$max_trend*100))); ?>%" title="送客 <?php echo intval($row['clicks']); ?>"></i></div><b><?php echo intval($row['impressions']); ?> / <?php echo intval($row['details']); ?> / <?php echo intval($row['clicks']); ?></b></div>
+            <div class="nf-trend-row"><time><?php echo esc_html($summary_mode?substr($row['event_date'],0,7):substr($row['event_date'],5)); ?></time><div class="nf-trend-bars"><i class="is-impression" style="width:<?php echo esc_attr(max(1,round($row['impressions']/$max_trend*100))); ?>%" title="表示 <?php echo intval($row['impressions']); ?>"></i><i class="is-detail" style="width:<?php echo esc_attr(max(1,round($row['details']/$max_trend*100))); ?>%" title="詳細 <?php echo intval($row['details']); ?>"></i><i class="is-click" style="width:<?php echo esc_attr(max(1,round($row['clicks']/$max_trend*100))); ?>%" title="送客 <?php echo intval($row['clicks']); ?>"></i></div><b><?php echo intval($row['impressions']); ?> / <?php echo intval($row['details']); ?> / <?php echo intval($row['clicks']); ?></b></div>
           <?php endforeach; endif; ?></div></section>
 
           <div class="nf-analytics-grid">
@@ -252,10 +381,10 @@ class NF_Analytics {
           <?php if($product_detail): ?><section class="nf-analytics-panel"><h2>返礼品別の表示・送客</h2><div class="nf-table-scroll"><table class="widefat striped"><thead><tr><th>返礼品</th><th>インプレッション</th><th>詳細閲覧</th><th>送客</th><th>送客率</th><th>状態</th></tr></thead><tbody><?php foreach($products as $row): $rate=self::percent((int)$row['clicks'],(int)$row['details']); $product_url=current_user_can('edit_post',(int)$row['product_id'])?get_edit_post_link((int)$row['product_id']):get_permalink((int)$row['product_id']); ?><tr><td><a href="<?php echo esc_url($product_url); ?>"><?php echo esc_html(get_the_title((int)$row['product_id'])); ?></a></td><td><?php echo intval($row['impressions']); ?></td><td><?php echo intval($row['details']); ?></td><td><?php echo intval($row['clicks']); ?></td><td><?php echo esc_html($rate); ?>%</td><td><?php echo ((int)$row['impressions']>=20 && (int)$row['clicks']===0)?'<span class="nf-needs-work">改善候補</span>':'—'; ?></td></tr><?php endforeach; ?></tbody></table></div></section><?php else: ?><section class="nf-analytics-panel is-locked"><h2>返礼品別分析</h2><p>Standard以上のプランで利用できます。</p></section><?php endif; ?>
 
           <?php if($advanced): ?><section class="nf-analytics-panel"><h2>検索・絞り込みの利用</h2><table class="widefat striped"><thead><tr><th>キーワード</th><th>カテゴリ</th><th>自治体</th><th>利用回数</th></tr></thead><tbody><?php foreach($filters as $row): ?><tr><td><?php echo esc_html($row['keyword'] ?: '—'); ?></td><td><?php echo esc_html($row['category_slug'] ?: '—'); ?></td><td><?php echo esc_html($row['municipality_slug'] ?: '—'); ?></td><td><?php echo intval($row['total']); ?></td></tr><?php endforeach; ?></tbody></table></section><?php endif; ?>
-          <p class="nf-analytics-note">「送客クリック」は楽天・Yahoo!等へのリンクが押された回数です。ポータル側の寄附件数を表すものではありません。IPアドレス・氏名・メールアドレスは保存しません。</p>
+          <p class="nf-analytics-note">「送客クリック」は楽天・Yahoo!等へのリンクが押された回数です。ポータル側の寄附件数を表すものではありません。IPアドレス・氏名・メールアドレスは保存しません。<?php if($summary_mode): ?> 5年・10年表示の利用者とセッションは月次集計値の合計であり、期間内の延べ値です。計測開始前のデータは復元されません。<?php endif; ?></p>
         </div>
         <style>
-        .nf-analytics-admin{max-width:1380px}.nf-analytics-heading{display:flex;justify-content:space-between;align-items:end;gap:20px;padding:26px 28px;border-radius:18px;background:linear-gradient(135deg,#155f36,#259447);color:#fff}.nf-analytics-heading span{font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.78}.nf-analytics-heading h1{margin:5px 0 6px;color:#fff}.nf-analytics-heading p{margin:0;opacity:.88}.nf-analytics-heading select{min-width:130px}.nf-analytics-cards{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:13px;margin:18px 0}.nf-analytics-card,.nf-analytics-panel{border:1px solid #dce4df;border-radius:14px;background:#fff;box-shadow:0 5px 20px rgba(26,68,43,.05)}.nf-analytics-card{padding:18px}.nf-analytics-card small{display:block;color:#657168;font-weight:700}.nf-analytics-card strong{display:block;margin-top:6px;color:#153f27;font-size:27px}.nf-analytics-panel{margin:16px 0;padding:22px}.nf-analytics-panel h2{margin-top:0}.nf-analytics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.nf-rank-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:10px 0;border-bottom:1px solid #edf0ee}.nf-rank-row:last-child{border-bottom:0}.nf-rank-row b{text-transform:capitalize}.nf-trend-legend{display:flex;gap:18px;margin-bottom:14px;font-size:12px;font-weight:700}.nf-trend-legend span:before{content:'';display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px;background:#8dbda0}.nf-trend-legend .is-detail:before{background:#4b83c3}.nf-trend-legend .is-click:before{background:#e09a2d}.nf-trend-row{display:grid;grid-template-columns:52px minmax(200px,1fr) 125px;gap:12px;align-items:center;margin:8px 0}.nf-trend-bars{display:grid;gap:3px}.nf-trend-bars i{display:block;height:5px;border-radius:9px;background:#8dbda0}.nf-trend-bars .is-detail{background:#4b83c3}.nf-trend-bars .is-click{background:#e09a2d}.nf-needs-work{display:inline-block;padding:4px 8px;border-radius:99px;background:#fff1d5;color:#8a5700;font-weight:700}.nf-analytics-panel.is-locked{background:#f7f8f7;color:#667069}.nf-analytics-note{padding:14px 16px;border-radius:10px;background:#eef6f0;color:#385844}.nf-table-scroll{overflow:auto}@media(max-width:900px){.nf-analytics-cards{grid-template-columns:repeat(2,1fr)}.nf-analytics-grid{grid-template-columns:1fr}.nf-analytics-heading{align-items:start;flex-direction:column}.nf-trend-row{grid-template-columns:46px minmax(120px,1fr)}}
+        .nf-analytics-admin{max-width:1380px}.nf-analytics-heading{display:flex;justify-content:space-between;align-items:end;gap:20px;padding:26px 28px;border-radius:18px;background:linear-gradient(135deg,#155f36,#259447);color:#fff}.nf-analytics-heading span{font-size:12px;font-weight:800;letter-spacing:.12em;opacity:.78}.nf-analytics-heading h1{margin:5px 0 6px;color:#fff}.nf-analytics-heading p{margin:0;opacity:.88}.nf-analytics-heading select{min-width:130px}.nf-analytics-cards{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:13px;margin:18px 0}.nf-analytics-card,.nf-analytics-panel{border:1px solid #dce4df;border-radius:14px;background:#fff;box-shadow:0 5px 20px rgba(26,68,43,.05)}.nf-analytics-card{padding:18px}.nf-analytics-card small{display:block;color:#657168;font-weight:700}.nf-analytics-card strong{display:block;margin-top:6px;color:#153f27;font-size:27px}.nf-analytics-panel{margin:16px 0;padding:22px}.nf-analytics-panel h2{margin-top:0}.nf-analytics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.nf-comparison-table{margin-top:16px;border:1px solid #e2e7e4;border-radius:10px;overflow:hidden}.nf-comparison-table>div{display:grid;grid-template-columns:1.2fr .7fr 1fr 1fr;gap:12px;padding:12px 14px;border-bottom:1px solid #edf0ee}.nf-comparison-table>div:first-child{background:#f4f7f5}.nf-comparison-table>div:last-child{border-bottom:0}.nf-comparison-table .is-up{color:#187b3d;font-weight:700}.nf-comparison-table .is-down{color:#b43d32;font-weight:700}.nf-comparison-table .is-neutral{color:#68716b}.nf-rank-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:10px 0;border-bottom:1px solid #edf0ee}.nf-rank-row:last-child{border-bottom:0}.nf-rank-row b{text-transform:capitalize}.nf-trend-legend{display:flex;gap:18px;margin-bottom:14px;font-size:12px;font-weight:700}.nf-trend-legend span:before{content:'';display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px;background:#8dbda0}.nf-trend-legend .is-detail:before{background:#4b83c3}.nf-trend-legend .is-click:before{background:#e09a2d}.nf-trend-row{display:grid;grid-template-columns:52px minmax(200px,1fr) 125px;gap:12px;align-items:center;margin:8px 0}.nf-trend-bars{display:grid;gap:3px}.nf-trend-bars i{display:block;height:5px;border-radius:9px;background:#8dbda0}.nf-trend-bars .is-detail{background:#4b83c3}.nf-trend-bars .is-click{background:#e09a2d}.nf-needs-work{display:inline-block;padding:4px 8px;border-radius:99px;background:#fff1d5;color:#8a5700;font-weight:700}.nf-analytics-panel.is-locked{background:#f7f8f7;color:#667069}.nf-analytics-note{padding:14px 16px;border-radius:10px;background:#eef6f0;color:#385844}.nf-table-scroll{overflow:auto}@media(max-width:900px){.nf-analytics-cards{grid-template-columns:repeat(2,1fr)}.nf-analytics-grid{grid-template-columns:1fr}.nf-analytics-heading{align-items:start;flex-direction:column}.nf-trend-row{grid-template-columns:46px minmax(120px,1fr)}.nf-comparison-table{overflow:auto}.nf-comparison-table>div{min-width:650px}}
         </style>
         <?php
     }

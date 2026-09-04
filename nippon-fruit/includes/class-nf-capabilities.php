@@ -4,7 +4,7 @@ if ( ! defined('ABSPATH') ) exit;
 class NF_Capabilities {
     const ROLE = 'customer_manager';
     const VERSION_OPTION = 'nf_capabilities_version';
-    const VERSION = '0.15.2';
+    const VERSION = '0.15.3';
     public static function caps() { return array('nf_view_dashboard','nf_manage_banners','nf_manage_features','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'); }
     public static function activate() {
         $caps = array('read'=>true,'upload_files'=>true);
