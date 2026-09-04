@@ -29,18 +29,30 @@ class NF_Product_Intelligence {
     private static function term_names($id,$taxonomy) {
         $terms=wp_get_post_terms($id,$taxonomy,array('fields'=>'names')); return is_wp_error($terms)?array():$terms;
     }
+    private static function text_value($value) {
+        if (is_scalar($value) || $value===null) return trim((string)$value);
+        $flat=array(); array_walk_recursive((array)$value,function($item) use (&$flat){ if(is_scalar($item)&&trim((string)$item)!=='') $flat[]=trim((string)$item); });
+        return implode(' / ',array_values(array_unique($flat)));
+    }
+    private static function evidence_sources($final,$stored) {
+        $flat=array();
+        array_walk_recursive(array($final['sources']??array(),$stored),function($item) use (&$flat){
+            $item=sanitize_key((string)$item); if(in_array($item,array('rule','text_ai','image_ai','manual'),true)) $flat[]=$item;
+        });
+        return array_values(array_unique($flat));
+    }
     public static function row($id) {
-        $title=get_the_title($id); $capacity=(string)get_post_meta($id,'_nf_capacity',true); $quantity=(string)get_post_meta($id,'_nf_quantity',true);
+        $title=get_the_title($id); $capacity=self::text_value(get_post_meta($id,'_nf_capacity',true)); $quantity=self::text_value(get_post_meta($id,'_nf_quantity',true));
         $attrs=(array)get_post_meta($id,NF_Category_Consistency::ATTRIBUTES_META,true);
         $final=(array)get_post_meta($id,NF_Classification_Evidence::FINAL_RESULT_META,true);
         $kg=self::normalize_weight_kg($capacity.' '.$title); $count=self::normalize_count($quantity.' '.$title); $price=self::price($id);
         $categories=self::term_names($id,NF_Category::TAXONOMY); $municipalities=self::term_names($id,'nf_municipality');
-        $sources=array_values(array_unique(array_merge((array)($final['sources']??array()),(array)get_post_meta($id,NF_Classification_Evidence::EVIDENCE_META,true))));
+        $sources=self::evidence_sources($final,get_post_meta($id,NF_Classification_Evidence::EVIDENCE_META,true));
         return array('id'=>$id,'title'=>$title,'municipality'=>implode(' / ',$municipalities),'categories'=>$categories,
             'item'=>!empty($attrs['items'])?implode(' / ',$attrs['items']):($categories?end($categories):''),'variety'=>!empty($attrs['varieties'])?implode(' / ',$attrs['varieties']):'',
             'capacity'=>$capacity,'kg'=>$kg,'count'=>$count,'quality'=>self::quality($title),'type'=>$attrs['product_type']??'single','price'=>$price,
             'per_kg'=>$kg>0&&$price>0?(int)round($price/$kg):0,'per_item'=>$count>0&&$price>0?(int)round($price/$count):0,
-            'shipping'=>(string)get_post_meta($id,'_nf_shipping',true),'sources'=>$sources,'confidence'=>(float)get_post_meta($id,NF_Classification_Evidence::FINAL_CONFIDENCE_META,true));
+            'shipping'=>self::text_value(get_post_meta($id,'_nf_shipping',true)),'sources'=>$sources,'confidence'=>(float)get_post_meta($id,NF_Classification_Evidence::FINAL_CONFIDENCE_META,true));
     }
     private static function comparable($a,$b) {
         $differences=array();

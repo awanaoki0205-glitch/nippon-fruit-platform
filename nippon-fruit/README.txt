@@ -1,4 +1,7 @@
-Version 0.16.0
+Version 0.16.1
+
+0.16.1
+- Product Intelligenceの分類証拠・規格メタが配列の場合の表示警告を修正。
 
 0.16.0
 - 顧客別Feature Flag、Product Intelligence、自治体・カテゴリ複数選択検索を追加。

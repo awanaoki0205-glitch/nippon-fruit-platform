@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.1
+
+- Product Intelligenceで配列形式の分類証拠・重量・数量・発送情報を安全に正規化し、Array to string conversion警告を修正。
+
 ## 0.16.0
 
 - Administrator専用の機能フラグ個別契約（プラン標準／有効／無効）と各種上限設定を追加。
