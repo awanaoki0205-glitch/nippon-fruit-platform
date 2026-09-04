@@ -180,7 +180,7 @@ class NF_Customer_Portal {
         if ( ! self::is_customer() || wp_doing_ajax() ) return;
         global $pagenow;
         $allowed_files = array('admin.php','edit-tags.php','term.php','options.php','admin-post.php','async-upload.php','media-upload.php','profile.php');
-        $allowed_pages = array('nf-customer-dashboard','nf-customer-easy-settings','nf-customer-display','nf-customer-category-order','nf-customer-contract');
+        $allowed_pages = array('nf-customer-dashboard','nf-customer-easy-settings','nf-customer-display','nf-customer-category-order','nf-customer-contract','nf-customer-intelligence');
         if ( ! in_array($pagenow, $allowed_files, true) ) {
             wp_safe_redirect(self::dashboard_url()); exit;
         }
@@ -216,7 +216,7 @@ class NF_Customer_Portal {
         $page = sanitize_key($_GET['page'] ?? '');
         $taxonomy = sanitize_key($_GET['taxonomy'] ?? '');
         if (
-            in_array($page, array('nf-customer-dashboard','nf-customer-easy-settings','nf-customer-display','nf-customer-category-order','nf-customer-contract'), true) ||
+            in_array($page, array('nf-customer-dashboard','nf-customer-easy-settings','nf-customer-display','nf-customer-category-order','nf-customer-contract','nf-customer-intelligence'), true) ||
             in_array($taxonomy, array('nf_category','nf_municipality'), true) ||
             in_array($pagenow, array('edit-tags.php','term.php'), true)
         ) return 'nf-customer-dashboard';

@@ -4,8 +4,8 @@ if ( ! defined('ABSPATH') ) exit;
 class NF_Capabilities {
     const ROLE = 'customer_manager';
     const VERSION_OPTION = 'nf_capabilities_version';
-    const VERSION = '0.12.8';
-    public static function caps() { return array('nf_view_dashboard','nf_manage_banners','nf_manage_features','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract'); }
+    const VERSION = '0.15.0';
+    public static function caps() { return array('nf_view_dashboard','nf_manage_banners','nf_manage_features','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'); }
     public static function activate() {
         $caps = array('read'=>true,'upload_files'=>true);
         foreach(self::caps() as $cap) $caps[$cap] = true;
@@ -16,6 +16,17 @@ class NF_Capabilities {
         }
         // add_role() does not update an existing role. Repair capabilities on upgrade.
         if ($role) foreach($caps as $cap => $grant) $role->add_cap($cap, $grant);
+        $role_sets = array(
+            'nf_customer_owner'=>array('read','upload_files','nf_view_dashboard','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'),
+            'nf_customer_manager'=>array('read','upload_files','nf_view_dashboard','nf_manage_categories','nf_manage_content','nf_manage_display','nf_view_analytics','nf_view_contract','nf_view_intelligence','nf_review_classification','nf_export_intelligence','nf_view_ai_costs'),
+            'nf_customer_reviewer'=>array('read','nf_view_dashboard','nf_view_intelligence','nf_review_classification','nf_view_contract'),
+            'nf_customer_viewer'=>array('read','nf_view_dashboard','nf_view_intelligence','nf_view_contract'),
+        );
+        $labels=array('nf_customer_owner'=>'顧客 Owner','nf_customer_manager'=>'顧客 Manager','nf_customer_reviewer'=>'顧客 Reviewer','nf_customer_viewer'=>'顧客 Viewer');
+        foreach($role_sets as $slug=>$allowed) {
+            $r=get_role($slug); if(!$r){ add_role($slug,$labels[$slug],array()); $r=get_role($slug); }
+            if($r) foreach($allowed as $cap) $r->add_cap($cap,true);
+        }
         $admin = get_role('administrator');
         if ($admin) foreach(array_merge(self::caps(), array('nf_manage_system','nf_manage_integrations','nf_manage_license')) as $cap) $admin->add_cap($cap);
     }
@@ -54,6 +65,7 @@ class NF_Capabilities {
         $logout_url = class_exists('NF_Customer_Portal') ? NF_Customer_Portal::logout_url() : wp_logout_url(home_url('/'));
         echo '<div class="wrap"><div class="nf-customer-brand" style="position:relative;padding-right:130px"><h1>' . esc_html($brand) . '</h1><p>運用管理ダッシュボード</p><a href="' . esc_url($logout_url) . '" style="position:absolute;right:22px;top:50%;transform:translateY(-50%);padding:9px 14px;border:1px solid rgba(255,255,255,.75);border-radius:8px;color:#fff;text-decoration:none;font-weight:700">ログアウト</a></div><p>公開サイトの表示内容をここから管理できます。契約やシステムの内部設定は運営管理者が管理します。</p><p><a class="button button-primary" href="' . esc_url(NF_System_Page::url()) . '" target="_blank" rel="noopener">公開サイトを確認</a></p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;max-width:950px;margin-top:22px">';
         $items=array(
+            array('Classification Intelligence','admin.php?page=nf-customer-intelligence','nf_view_intelligence'),
             array('独自カテゴリ管理','edit-tags.php?taxonomy='.NF_Category::TAXONOMY,'nf_manage_categories'),
             array('自治体管理','edit-tags.php?taxonomy=nf_municipality','nf_manage_categories'),
             array('カテゴリ・自治体の並び順','admin.php?page=nf-customer-category-order','nf_manage_categories'),

@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Furusato Catalog
  * Description: ふるさと納税返礼品の管理・カテゴリ分類・楽天／Yahoo!ショッピングAPI・アフィリエイト連携に対応した汎用カタログプラグイン
- * Version: 0.14.8
+ * Version: 0.15.0
  * Author: Furusato Catalog
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'NF_VERSION', '0.14.8' );
+define( 'NF_VERSION', '0.15.0' );
 define( 'NF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -36,6 +36,7 @@ require_once NF_PLUGIN_DIR . 'includes/class-nf-category-classifier.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-classification-metrics.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-classification-evidence.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-classification-history.php';
+require_once NF_PLUGIN_DIR . 'includes/class-nf-intelligence-dashboard.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-ai-category-classifier.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-image-category-classifier.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-classification-admin.php';
@@ -69,6 +70,7 @@ add_action( 'plugins_loaded', array( 'NF_Category', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Category_Consistency', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Category_Classifier', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Classification_History', 'init' ) );
+add_action( 'plugins_loaded', array( 'NF_Intelligence_Dashboard', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_AI_Category_Classifier', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Classification_Admin', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Admin_Hub', 'init' ) );

@@ -16,6 +16,7 @@ class NF_Classification_History {
     const AI_CORRECT_META = '_nf_classification_ai_correct';
     const BEFORE_TERMS_META = '_nf_classification_before_terms';
     const AFTER_TERMS_META = '_nf_classification_after_terms';
+    const VERIFICATION_REASON_META = '_nf_classification_verification_reason';
     const MAX_HISTORY = 50;
 
     public static function init() {
@@ -154,7 +155,7 @@ class NF_Classification_History {
         return self::leaf_ids($predicted) === self::leaf_ids($gold);
     }
 
-    private static function save_verification($post_id, $action, $gold = array()) {
+    public static function save_verification($post_id, $action, $gold = array(), $reason = '') {
         $before = self::current_term_ids($post_id);
         $gold = $action === 'correct' ? $before : self::clean_ids($gold);
         if (!$gold) return new WP_Error('nf_gold_required','正しいカテゴリがありません。カテゴリを選択してください。');
@@ -166,6 +167,7 @@ class NF_Classification_History {
         update_post_meta($post_id, self::BEFORE_TERMS_META, $before);
         update_post_meta($post_id, self::AFTER_TERMS_META, $gold);
         update_post_meta($post_id, self::AI_CORRECT_META, self::same_categories($current['final']['categories'] ?? array(), $gold) ? '1' : '0');
+        update_post_meta($post_id, self::VERIFICATION_REASON_META, sanitize_textarea_field($reason));
         if ($action === 'corrected') {
             wp_set_object_terms($post_id, $gold, NF_Category::TAXONOMY, false);
             update_post_meta($post_id, NF_Category::AUTO_TERMS_META, $gold);
@@ -174,6 +176,7 @@ class NF_Classification_History {
         update_post_meta($post_id, NF_Category_Classifier::STATUS_META, 'manual');
         update_post_meta($post_id, NF_Category_Classifier::METHOD_META, 'manual');
         self::record($post_id, 'manual', 'manual', 1, $action === 'correct' ? '管理者が分類を正解として確認' : '管理者が正解分類へ修正');
+        if (class_exists('NF_Intelligence_Dashboard')) NF_Intelligence_Dashboard::audit($action === 'correct' ? 'gold_standard_confirmed' : 'classification_corrected','商品ID '.$post_id.($reason!==''?'：'.sanitize_text_field($reason):''));
         return true;
     }
 

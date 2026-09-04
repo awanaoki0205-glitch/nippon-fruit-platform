@@ -1,4 +1,12 @@
-Version 0.14.8
+Version 0.15.0
+
+0.15.0
+- 顧客専用Classification Intelligence Dashboardを追加
+- 段階別Accuracy／Confidence、AI利用効率、商品・カテゴリ・自治体・価格・受付状況分析を追加
+- ルールベースのData Quality Score、品質課題、改善提案、要確認一覧を追加
+- 顧客スコープCSV、Gold Standard確認、監査ログを追加
+- Owner／Manager／Reviewer／Viewerの拡張可能な権限セットを追加
+- 既存分類結果だけを再利用し、ダッシュボード表示によるAI API再実行は行わない
 
 0.14.8
 - Image AIの修正効果と二重チェック効果を分けて表示する監査指標を追加
