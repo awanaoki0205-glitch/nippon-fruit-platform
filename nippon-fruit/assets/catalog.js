@@ -42,7 +42,6 @@ jQuery(function($){
 
     let request = null;
     let appliedState = null;
-    let priceAutoApplyTimer = null;
 
     function isMobileFilterMode() {
         return !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
@@ -654,7 +653,12 @@ jQuery(function($){
         const $target = $checks.filter(function(){ return String($(this).data('slug') || '') === slug; }).first();
         if (!$target.length) return;
         $target.prop('checked', true);
-        $target.closest('.nf-category-tree-row').addClass('is-selected');
+        const $targetRow = $target.closest('.nf-category-tree-row');
+        $targetRow.addClass('is-selected');
+        // Match the gift-category tree: selecting a parent also opens its own
+        // branch so the prefectural office and municipalities appear at once.
+        const $ownToggle = $targetRow.find('.nf-category-tree-toggle').first();
+        if ($ownToggle.length) setCategoryBranchOpen($ownToggle, true);
         $target.parents('.nf-category-tree-children').each(function(){
             const $toggle = $(this).siblings('.nf-category-tree-row').find('.nf-category-tree-toggle').first();
             if ($toggle.length) setCategoryBranchOpen($toggle, true);
@@ -1244,8 +1248,8 @@ jQuery(function($){
         if ($(this).val() !== '') {
             $priceRange.val('');
         }
-        window.clearTimeout(priceAutoApplyTimer);
-        priceAutoApplyTimer = window.setTimeout(autoApplyOnDesktop, 450);
+        // 金額は桁を入力している途中で検索しない。「適用」または検索
+        // ボタンを押した時点で初めて反映し、入力パネルを維持する。
     });
 
     $(document).on('click', '.nf-category-tree-toggle', function(){

@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Furusato Catalog
  * Description: ふるさと納税返礼品の管理・カテゴリ分類・楽天／Yahoo!ショッピングAPI・アフィリエイト連携に対応した汎用カタログプラグイン
- * Version: 0.15.4
+ * Version: 0.15.5
  * Author: NipponFruit
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'NF_VERSION', '0.15.4' );
+define( 'NF_VERSION', '0.15.5' );
 define( 'NF_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NF_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -39,6 +39,7 @@ require_once NF_PLUGIN_DIR . 'includes/class-nf-classification-history.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-intelligence-dashboard.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-analytics.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-ai-category-classifier.php';
+require_once NF_PLUGIN_DIR . 'includes/class-nf-municipality-classifier.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-image-category-classifier.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-classification-admin.php';
 require_once NF_PLUGIN_DIR . 'includes/class-nf-admin-hub.php';
@@ -50,6 +51,7 @@ register_activation_hook( __FILE__, array( 'NF_System_Page', 'migrate_legacy' ) 
 register_activation_hook( __FILE__, array( 'NF_Capabilities', 'activate' ) );
 register_activation_hook( __FILE__, array( 'NF_Core', 'activate' ) );
 register_activation_hook( __FILE__, array( 'NF_Analytics', 'activate' ) );
+register_activation_hook( __FILE__, array( 'NF_Municipality_Classifier', 'activate' ) );
 register_activation_hook( __FILE__, array( 'NF_Auto_Sync', 'activate' ) );
 register_activation_hook( __FILE__, array( 'NF_Furusato_Pages', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'NF_Auto_Sync', 'deactivate' ) );
@@ -75,6 +77,7 @@ add_action( 'plugins_loaded', array( 'NF_Classification_History', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Intelligence_Dashboard', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Analytics', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_AI_Category_Classifier', 'init' ) );
+add_action( 'plugins_loaded', array( 'NF_Municipality_Classifier', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Classification_Admin', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Admin_Hub', 'init' ) );
 add_action( 'plugins_loaded', array( 'NF_Quality', 'init' ) );
